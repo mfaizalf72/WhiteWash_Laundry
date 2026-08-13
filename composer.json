@@ -1,0 +1,17 @@
+{
+    "name": "faizal/laundry-lms",
+    "description": "Laundry Management System",
+    "type": "project",
+    "autoload": {
+        "psr-4": {
+            "Faizal\\LaundryLms\\": "app/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Faizal"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}
