@@ -1,0 +1,21 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Explicitly define the base path to prevent XAMPP subfolder confusion
+    RewriteBase /laundry-lms/public/
+
+    # Handle Authorization Headers for APIs (Crucial for later modules)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # If the requested file or directory physically exists, serve it directly (e.g., CSS, JS, Images)
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    
+    # Otherwise, send everything to the Front Controller
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>

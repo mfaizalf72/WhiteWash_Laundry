@@ -1,0 +1,11 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Prevent infinite loops by checking if we are already in the public directory
+    RewriteCond %{REQUEST_URI} !^/laundry-lms/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
