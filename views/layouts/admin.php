@@ -33,6 +33,9 @@
             <a href="/laundry-lms/pricing" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
                 Pricing
             </a>
+            <a href="/laundry-lms/reports" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                Reports
+            </a>
             <?php if (($_SESSION['user_role'] ?? '') === 'admin'): ?>
             <a href="/laundry-lms/admin/settings" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
                 Business Settings

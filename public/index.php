@@ -69,6 +69,9 @@ $router->get('/orders/show', 'Faizal\LaundryLms\Controllers\OrderController@show
 $router->post('/orders/status', 'Faizal\LaundryLms\Controllers\OrderController@updateStatus', $authRoleCsrf);
 $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@recordPayment', $authRoleCsrf);
 
+// Reports Route
+$router->get('/reports', 'Faizal\LaundryLms\Controllers\ReportController@index', $authRole);
+
 // Admin Settings Route
 $router->get('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@index', [AuthMiddleware::class, RoleMiddleware::class . ':admin']);
 $router->post('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@update', [AuthMiddleware::class, RoleMiddleware::class . ':admin', CsrfMiddleware::class]);
