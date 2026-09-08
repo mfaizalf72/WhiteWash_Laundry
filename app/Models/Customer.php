@@ -104,4 +104,25 @@ class Customer {
         $stmt = $db->prepare("UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = :id AND role = 'customer'");
         return $stmt->execute(['id' => $id]);
     }
+
+    public static function updateProfile(int $id, array $data): bool {
+        $db = Database::getConnection();
+        $sql = "UPDATE users
+                SET name = :name, mobile = :mobile, address = :address, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND role = 'customer' AND deleted_at IS NULL";
+        $stmt = $db->prepare($sql);
+        return $stmt->execute([
+            'id'      => $id,
+            'name'    => trim($data['name'] ?? ''),
+            'mobile'  => trim($data['mobile'] ?? ''),
+            'address' => !empty($data['address']) ? trim($data['address']) : null
+        ]);
+    }
+
+    public static function updatePin(int $id, string $newPin): bool {
+        $db = Database::getConnection();
+        $hash = password_hash($newPin, PASSWORD_DEFAULT);
+        $stmt = $db->prepare("UPDATE users SET pin_hash = :hash, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND deleted_at IS NULL");
+        return $stmt->execute(['hash' => $hash, 'id' => $id]);
+    }
 }

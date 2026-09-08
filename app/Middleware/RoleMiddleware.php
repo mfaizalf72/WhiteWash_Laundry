@@ -20,10 +20,11 @@ class RoleMiddleware implements MiddlewareInterface {
 
         if (!in_array($userRole, $allowedRoles, true)) {
             http_response_code(403);
+            $redirectUrl = ($userRole === 'customer') ? '/laundry-lms/customer/dashboard' : '/laundry-lms/dashboard';
             echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-w: 600px; margin: 0 auto;'>" .
                  "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
                  "<p style='color: #475569;'>You do not have authorization to access this area.</p>" .
-                 "<p><a href='/laundry-lms/dashboard' style='color: #2563eb; text-decoration: underline;'>Return to Dashboard</a></p>" .
+                 "<p><a href='{$redirectUrl}' style='color: #2563eb; text-decoration: underline;'>Return to Dashboard</a></p>" .
                  "</div>";
             exit;
         }

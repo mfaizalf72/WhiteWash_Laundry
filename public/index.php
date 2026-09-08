@@ -29,12 +29,25 @@ $router->get('/login', 'Faizal\LaundryLms\Controllers\AuthController@showLogin',
 $router->post('/login', 'Faizal\LaundryLms\Controllers\AuthController@login', [CsrfMiddleware::class]);
 $router->get('/logout', 'Faizal\LaundryLms\Controllers\AuthController@logout', [AuthMiddleware::class]);
 
-// Protected Routes (Dashboard) - Any authenticated user (admin, staff, customer)
-$router->get('/dashboard', 'Faizal\LaundryLms\Controllers\DashboardController@index', [AuthMiddleware::class]);
-
 // Admin & Staff Master Data Routes
 $authRole = [AuthMiddleware::class, RoleMiddleware::class . ':admin,staff'];
 $authRoleCsrf = [AuthMiddleware::class, RoleMiddleware::class . ':admin,staff', CsrfMiddleware::class];
+
+// Protected Admin/Staff Dashboard Route
+$router->get('/dashboard', 'Faizal\LaundryLms\Controllers\DashboardController@index', $authRole);
+
+// Customer Portal Routes
+$customerAuth = [AuthMiddleware::class, RoleMiddleware::class . ':customer'];
+$customerAuthCsrf = [AuthMiddleware::class, RoleMiddleware::class . ':customer', CsrfMiddleware::class];
+
+$router->get('/customer/dashboard', 'Faizal\LaundryLms\Controllers\CustomerPortalController@dashboard', $customerAuth);
+$router->get('/customer/orders', 'Faizal\LaundryLms\Controllers\CustomerPortalController@orders', $customerAuth);
+$router->get('/customer/orders/show', 'Faizal\LaundryLms\Controllers\CustomerPortalController@showOrder', $customerAuth);
+$router->get('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@createOrderForm', $customerAuth);
+$router->post('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@storeOrder', $customerAuthCsrf);
+$router->get('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@profile', $customerAuth);
+$router->post('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@updateProfile', $customerAuthCsrf);
+$router->post('/customer/profile/pin', 'Faizal\LaundryLms\Controllers\CustomerPortalController@changePin', $customerAuthCsrf);
 
 // Laundry Items
 $router->get('/items', 'Faizal\LaundryLms\Controllers\LaundryItemController@index', $authRole);

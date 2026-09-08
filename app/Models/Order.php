@@ -222,4 +222,72 @@ class Order {
             throw $e;
         }
     }
+
+    public static function getCustomerKpis(int $customerId): array {
+        $db = Database::getConnection();
+
+        $stmtTotal = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = :cid");
+        $stmtTotal->execute(['cid' => $customerId]);
+        $total = (int)$stmtTotal->fetchColumn();
+
+        $stmtActive = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = :cid AND status != 'completed'");
+        $stmtActive->execute(['cid' => $customerId]);
+        $active = (int)$stmtActive->fetchColumn();
+
+        $stmtCompleted = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = :cid AND status = 'completed'");
+        $stmtCompleted->execute(['cid' => $customerId]);
+        $completed = (int)$stmtCompleted->fetchColumn();
+
+        $stmtBalance = $db->prepare("SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM orders WHERE customer_id = :cid");
+        $stmtBalance->execute(['cid' => $customerId]);
+        $outstanding = round((float)$stmtBalance->fetchColumn(), 2);
+
+        return [
+            'total'       => $total,
+            'active'      => $active,
+            'completed'   => $completed,
+            'outstanding' => $outstanding
+        ];
+    }
+
+    public static function getCustomerRecentOrders(int $customerId, int $limit = 5): array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM orders WHERE customer_id = :cid ORDER BY id DESC LIMIT " . (int)$limit);
+        $stmt->execute(['cid' => $customerId]);
+        return $stmt->fetchAll();
+    }
+
+    public static function getCustomerOrders(int $customerId, string $filter = 'all'): array {
+        $db = Database::getConnection();
+        $conditions = ["customer_id = :cid"];
+        $params = ['cid' => $customerId];
+
+        if ($filter === 'active') {
+            $conditions[] = "status != 'completed'";
+        } elseif ($filter === 'completed') {
+            $conditions[] = "status = 'completed'";
+        } elseif ($filter === 'pending') {
+            $conditions[] = "(payment_status != 'paid' OR amount_paid < total_amount)";
+        }
+
+        $where = implode(" AND ", $conditions);
+        $stmt = $db->prepare("SELECT * FROM orders WHERE {$where} ORDER BY id DESC");
+        $stmt->execute($params);
+        return $stmt->fetchAll();
+    }
+
+    public static function findForCustomer(int $orderId, int $customerId): ?array {
+        $db = Database::getConnection();
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+                FROM orders o
+                JOIN users c ON o.customer_id = c.id
+                LEFT JOIN users s ON o.staff_id = s.id
+                WHERE o.id = :id AND o.customer_id = :customer_id
+                LIMIT 1";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute(['id' => $orderId, 'customer_id' => $customerId]);
+        $order = $stmt->fetch();
+        return $order ?: null;
+    }
 }

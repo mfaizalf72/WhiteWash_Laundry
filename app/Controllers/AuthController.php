@@ -42,7 +42,11 @@ class AuthController {
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['user_name'] = $user['name'];
 
-            Router::redirect('/dashboard');
+            if ($user['role'] === 'customer') {
+                Router::redirect('/customer/dashboard');
+            } else {
+                Router::redirect('/dashboard');
+            }
         } else {
             $this->backWithErrors("Invalid mobile number or PIN.");
         }
