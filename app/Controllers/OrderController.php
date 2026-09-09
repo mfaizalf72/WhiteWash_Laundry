@@ -14,20 +14,36 @@ use Faizal\LaundryLms\Models\Payment;
 
 class OrderController {
     public function index(): void {
-        $status = trim($_GET['status'] ?? '');
-        $search = trim($_GET['search'] ?? '');
+        $status        = trim($_GET['status'] ?? '');
+        $search        = trim($_GET['search'] ?? '');
+        $pickupToday   = !empty($_GET['pickup_today']);
+        $deliveryToday = !empty($_GET['delivery_today']);
+        $paymentDue    = !empty($_GET['payment_due']);
+        $page          = max(1, (int)($_GET['page'] ?? 1));
 
-        $orders = Order::all([
-            'status' => $status,
-            'search' => $search
-        ]);
+        $filters = [
+            'status'         => $status,
+            'search'         => $search,
+            'pickup_today'   => $pickupToday,
+            'delivery_today' => $deliveryToday,
+            'payment_due'    => $paymentDue
+        ];
+
+        $paginatedData = Order::allPaginated($filters, $page, 20);
+        $layout        = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/index', [
-            'title'  => 'Order Management - Launder',
-            'orders' => $orders,
-            'status' => $status,
-            'search' => $search
-        ], 'admin');
+            'title'        => 'Order Directory - Launder',
+            'orders'       => $paginatedData['orders'],
+            'totalOrders'  => $paginatedData['total_orders'],
+            'page'         => $paginatedData['page'],
+            'totalPages'   => $paginatedData['total_pages'],
+            'status'       => $status,
+            'search'       => $search,
+            'pickupToday'  => $pickupToday,
+            'deliveryToday'=> $deliveryToday,
+            'paymentDue'   => $paymentDue
+        ], $layout);
     }
 
     public function create(): void {
@@ -195,13 +211,14 @@ class OrderController {
 
         $history  = Order::getStatusHistory($id);
         $payments = Payment::getByOrderId($id);
+        $layout   = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/show', [
             'title'    => 'Order ' . $order['job_id'] . ' - Launder',
             'order'    => $order,
             'history'  => $history,
             'payments' => $payments
-        ], 'admin');
+        ], $layout);
     }
 
     public function updateStatus(): void {
@@ -223,7 +240,42 @@ class OrderController {
             $_SESSION['error'] = $e->getMessage();
         }
 
-        Router::redirect('/orders/show?id=' . $orderId);
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
+    }
+
+    public function claimOrder(): void {
+        $userRole = $_SESSION['user_role'] ?? '';
+        $userId   = (int)($_SESSION['user_id'] ?? 0);
+
+        if ($userRole !== 'staff') {
+            $_SESSION['error'] = "Unauthorized: Only staff members may claim unassigned orders.";
+            Router::redirect('/staff/dashboard');
+            return;
+        }
+
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for claiming.";
+            Router::redirect('/staff/dashboard');
+            return;
+        }
+
+        try {
+            Order::claimOrder($orderId, $userId);
+            $_SESSION['success'] = "Order #{$orderId} claimed successfully!";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? '/staff/dashboard');
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/staff/dashboard';
+        }
+        Router::redirect($redirect);
     }
 
     public function recordPayment(): void {
@@ -243,6 +295,10 @@ class OrderController {
             $_SESSION['error'] = $e->getMessage();
         }
 
-        Router::redirect('/orders/show?id=' . $orderId);
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
     }
 }

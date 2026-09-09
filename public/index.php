@@ -74,6 +74,12 @@ $router->post('/customers', 'Faizal\LaundryLms\Controllers\CustomerController@st
 $router->post('/customers/update', 'Faizal\LaundryLms\Controllers\CustomerController@update', $authRoleCsrf);
 $router->post('/customers/delete', 'Faizal\LaundryLms\Controllers\CustomerController@delete', $authRoleCsrf);
 
+// Staff Operational Routes
+$staffOnlyAuth     = [AuthMiddleware::class, RoleMiddleware::class . ':staff'];
+$staffOnlyAuthCsrf = [AuthMiddleware::class, RoleMiddleware::class . ':staff', CsrfMiddleware::class];
+
+$router->get('/staff/dashboard', 'Faizal\LaundryLms\Controllers\StaffPortalController@dashboard', $staffOnlyAuth);
+
 // Orders Management
 $router->get('/orders', 'Faizal\LaundryLms\Controllers\OrderController@index', $authRole);
 $router->get('/orders/create', 'Faizal\LaundryLms\Controllers\OrderController@create', $authRole);
@@ -81,6 +87,7 @@ $router->post('/orders', 'Faizal\LaundryLms\Controllers\OrderController@store', 
 $router->get('/orders/show', 'Faizal\LaundryLms\Controllers\OrderController@show', $authRole);
 $router->post('/orders/status', 'Faizal\LaundryLms\Controllers\OrderController@updateStatus', $authRoleCsrf);
 $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@recordPayment', $authRoleCsrf);
+$router->post('/orders/claim', 'Faizal\LaundryLms\Controllers\OrderController@claimOrder', $staffOnlyAuthCsrf);
 
 // Reports Route
 $router->get('/reports', 'Faizal\LaundryLms\Controllers\ReportController@index', $authRole);

@@ -11,8 +11,11 @@ class GuestMiddleware implements MiddlewareInterface {
             session_start();
         }
         if (isset($_SESSION['user_id'])) {
-            if (($_SESSION['user_role'] ?? '') === 'customer') {
+            $role = $_SESSION['user_role'] ?? '';
+            if ($role === 'customer') {
                 Router::redirect('/customer/dashboard');
+            } elseif ($role === 'staff') {
+                Router::redirect('/staff/dashboard');
             } else {
                 Router::redirect('/dashboard');
             }

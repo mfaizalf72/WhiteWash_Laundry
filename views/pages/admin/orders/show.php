@@ -93,8 +93,24 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <span class="font-medium text-slate-800 block"><?= !empty($order['delivery_date']) ? htmlspecialchars(date('F j, Y', strtotime($order['delivery_date']))) : 'Not specified' ?></span>
                 </div>
                 <div>
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Recorded By</span>
-                    <span class="font-medium text-slate-800 block"><?= htmlspecialchars($order['staff_name'] ?? 'System Admin') ?></span>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Assigned Staff</span>
+                    <?php if (!empty($order['staff_name'])): ?>
+                        <span class="font-medium text-slate-800 block"><?= htmlspecialchars($order['staff_name']) ?></span>
+                    <?php else: ?>
+                        <div class="flex items-center justify-between mt-1">
+                            <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Unassigned</span>
+                            <?php if (($_SESSION['user_role'] ?? '') === 'staff'): ?>
+                                <form action="/laundry-lms/orders/claim" method="POST" class="inline-block">
+                                    <?= Csrf::field() ?>
+                                    <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                                    <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1 rounded shadow-sm transition-colors">
+                                        Claim Order
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

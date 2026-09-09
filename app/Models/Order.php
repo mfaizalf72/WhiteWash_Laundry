@@ -290,4 +290,155 @@ class Order {
         $order = $stmt->fetch();
         return $order ?: null;
     }
+
+    public static function getStaffOperationalQueues(): array {
+        $db = Database::getConnection();
+
+        // 1. Pickup Requests Queue
+        $sqlPickup = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+                      FROM orders o
+                      JOIN users c ON o.customer_id = c.id
+                      LEFT JOIN users s ON o.staff_id = s.id
+                      WHERE o.status = 'pickup_request'
+                      ORDER BY o.id DESC";
+        $pickups = $db->query($sqlPickup)->fetchAll();
+
+        // 2. In-Shop Processing Queue
+        $sqlProcessing = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+                          FROM orders o
+                          JOIN users c ON o.customer_id = c.id
+                          LEFT JOIN users s ON o.staff_id = s.id
+                          WHERE o.status IN ('accepted', 'picked_up', 'inspection_completed', 'price_confirmed', 'processing')
+                          ORDER BY o.id DESC";
+        $processing = $db->query($sqlProcessing)->fetchAll();
+
+        // 3. Ready / Delivery Queue
+        $sqlDelivery = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+                        FROM orders o
+                        JOIN users c ON o.customer_id = c.id
+                        LEFT JOIN users s ON o.staff_id = s.id
+                        WHERE o.status IN ('ready', 'out_for_delivery')
+                        ORDER BY o.id DESC";
+        $delivery = $db->query($sqlDelivery)->fetchAll();
+
+        // 4. Payment Due Queue (Delivered & Unsettled)
+        $sqlPaymentDue = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+                          FROM orders o
+                          JOIN users c ON o.customer_id = c.id
+                          LEFT JOIN users s ON o.staff_id = s.id
+                          WHERE o.status = 'delivered' AND (o.payment_status != 'paid' OR o.amount_paid < o.total_amount)
+                          ORDER BY o.id DESC";
+        $paymentDue = $db->query($sqlPaymentDue)->fetchAll();
+
+        return [
+            'pickup_requests' => $pickups,
+            'processing'      => $processing,
+            'delivery'        => $delivery,
+            'payment_due'     => $paymentDue
+        ];
+    }
+
+    public static function allPaginated(array $filters = [], int $page = 1, int $limit = 20): array {
+        $db = Database::getConnection();
+
+        // Validate and bound page & limit
+        $limit = max(1, min(50, $limit));
+        $page  = max(1, $page);
+        $offset = ($page - 1) * $limit;
+
+        $conditions = ["1=1"];
+        $params = [];
+
+        // Valid statuses state machine whitelist
+        $validStatuses = array_merge(array_keys(self::STATUS_SEQUENCE), ['completed']);
+
+        if (!empty($filters['status']) && in_array($filters['status'], $validStatuses, true)) {
+            $conditions[] = "o.status = :status";
+            $params['status'] = $filters['status'];
+        }
+
+        if (!empty($filters['search'])) {
+            $term = '%' . trim($filters['search']) . '%';
+            $conditions[] = "(o.job_id LIKE :term1 OR c.name LIKE :term2 OR c.mobile LIKE :term3)";
+            $params['term1'] = $term;
+            $params['term2'] = $term;
+            $params['term3'] = $term;
+        }
+
+        if (!empty($filters['pickup_today'])) {
+            $conditions[] = "DATE(o.pickup_date) = CURRENT_DATE()";
+        }
+
+        if (!empty($filters['delivery_today'])) {
+            $conditions[] = "DATE(o.delivery_date) = CURRENT_DATE()";
+        }
+
+        if (!empty($filters['payment_due'])) {
+            $conditions[] = "(o.payment_status != 'paid' OR o.amount_paid < o.total_amount)";
+        }
+
+        $whereClause = implode(" AND ", $conditions);
+
+        // Total count query
+        $countSql = "SELECT COUNT(*) FROM orders o JOIN users c ON o.customer_id = c.id WHERE {$whereClause}";
+        $countStmt = $db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalOrders = (int)$countStmt->fetchColumn();
+
+        $totalPages = max(1, (int)ceil($totalOrders / $limit));
+
+        // Paginated rows query
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+                FROM orders o
+                JOIN users c ON o.customer_id = c.id
+                LEFT JOIN users s ON o.staff_id = s.id
+                WHERE {$whereClause}
+                ORDER BY o.id DESC
+                LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $orders = $stmt->fetchAll();
+
+        return [
+            'orders'       => $orders,
+            'total_orders' => $totalOrders,
+            'page'         => $page,
+            'limit'        => $limit,
+            'total_pages'  => $totalPages
+        ];
+    }
+
+    public static function claimOrder(int $orderId, int $staffUserId): bool {
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            // Lock order row
+            $stmt = $db->prepare("SELECT id, staff_id FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if (!empty($order['staff_id'])) {
+                $db->rollBack();
+                throw new \DomainException("Order #{$orderId} is already assigned to a staff member.");
+            }
+
+            $updateStmt = $db->prepare("UPDATE orders SET staff_id = :staff_id, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND staff_id IS NULL");
+            $updateStmt->execute(['staff_id' => $staffUserId, 'id' => $orderId]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
 }

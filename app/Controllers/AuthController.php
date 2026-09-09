@@ -44,6 +44,8 @@ class AuthController {
 
             if ($user['role'] === 'customer') {
                 Router::redirect('/customer/dashboard');
+            } elseif ($user['role'] === 'staff') {
+                Router::redirect('/staff/dashboard');
             } else {
                 Router::redirect('/dashboard');
             }
