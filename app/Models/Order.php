@@ -35,7 +35,7 @@ class Order {
         return $jobId;
     }
 
-    public static function create(array $orderData, int $staffUserId): int {
+    public static function create(array $orderData, ?int $staffUserId = null): int {
         $db = Database::getConnection();
         $db->beginTransaction();
 
@@ -48,18 +48,29 @@ class Order {
                     (:job_id, :customer_id, :staff_id, :status, :total_amount, :amount_paid, :payment_status, :pickup_date, :delivery_date, :special_instructions)";
 
             $stmt = $db->prepare($sql);
-            $stmt->execute([
-                'job_id'               => $jobId,
-                'customer_id'          => $orderData['customer_id'],
-                'staff_id'             => $staffUserId,
-                'status'               => $orderData['status'] ?? 'pickup_request',
-                'total_amount'         => $orderData['total_amount'],
-                'amount_paid'          => $orderData['amount_paid'] ?? 0.00,
-                'payment_status'       => $orderData['payment_status'] ?? 'unpaid',
-                'pickup_date'          => $orderData['pickup_date'],
-                'delivery_date'        => !empty($orderData['delivery_date']) ? $orderData['delivery_date'] : null,
-                'special_instructions' => !empty($orderData['special_instructions']) ? $orderData['special_instructions'] : null
-            ]);
+            $stmt->bindValue(':job_id', $jobId);
+            $stmt->bindValue(':customer_id', $orderData['customer_id'], PDO::PARAM_INT);
+            if ($staffUserId !== null && $staffUserId > 0) {
+                $stmt->bindValue(':staff_id', $staffUserId, PDO::PARAM_INT);
+            } else {
+                $stmt->bindValue(':staff_id', null, PDO::PARAM_NULL);
+            }
+            $stmt->bindValue(':status', $orderData['status'] ?? 'pickup_request');
+            $stmt->bindValue(':total_amount', $orderData['total_amount']);
+            $stmt->bindValue(':amount_paid', $orderData['amount_paid'] ?? 0.00);
+            $stmt->bindValue(':payment_status', $orderData['payment_status'] ?? 'unpaid');
+            $stmt->bindValue(':pickup_date', $orderData['pickup_date']);
+            if (!empty($orderData['delivery_date'])) {
+                $stmt->bindValue(':delivery_date', $orderData['delivery_date']);
+            } else {
+                $stmt->bindValue(':delivery_date', null, PDO::PARAM_NULL);
+            }
+            if (!empty($orderData['special_instructions'])) {
+                $stmt->bindValue(':special_instructions', $orderData['special_instructions']);
+            } else {
+                $stmt->bindValue(':special_instructions', null, PDO::PARAM_NULL);
+            }
+            $stmt->execute();
 
             $orderId = (int)$db->lastInsertId();
 
@@ -70,7 +81,7 @@ class Order {
             $histStmt->execute([
                 'order_id'   => $orderId,
                 'new_status' => $orderData['status'] ?? 'pickup_request',
-                'updated_by' => $staffUserId
+                'updated_by' => $staffUserId ?? $orderData['customer_id']
             ]);
 
             $db->commit();

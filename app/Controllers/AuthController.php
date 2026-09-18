@@ -43,10 +43,17 @@ class AuthController {
             $_SESSION['user_name'] = $user['name'];
 
             if ($user['role'] === 'customer') {
+                if ($pin === '1234') {
+                    $_SESSION['requires_pin_change'] = true;
+                } else {
+                    unset($_SESSION['requires_pin_change']);
+                }
                 Router::redirect('/customer/dashboard');
             } elseif ($user['role'] === 'staff') {
+                unset($_SESSION['requires_pin_change']);
                 Router::redirect('/staff/dashboard');
             } else {
+                unset($_SESSION['requires_pin_change']);
                 Router::redirect('/dashboard');
             }
         } else {

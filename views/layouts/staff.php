@@ -8,7 +8,7 @@ use Faizal\LaundryLms\Helpers\Security;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= Security::e($title ?? 'Staff Operations - Launder') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="/laundry-lms/public/assets/css/app.css" rel="stylesheet">
+    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-slate-50 text-slate-900 flex h-screen overflow-hidden font-sans">
 

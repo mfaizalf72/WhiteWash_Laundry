@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title ?? 'Admin') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="/laundry-lms/public/assets/css/app.css" rel="stylesheet">
+    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-slate-50 text-slate-900 flex h-screen overflow-hidden font-sans">
 
@@ -15,9 +15,15 @@
             <span class="font-display font-bold text-xl tracking-tight">Launder</span>
         </div>
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+            <?php if (($_SESSION['user_role'] ?? '') === 'staff'): ?>
+            <a href="/laundry-lms/staff/dashboard" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
+                Dashboard
+            </a>
+            <?php else: ?>
             <a href="/laundry-lms/dashboard" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
                 Dashboard
             </a>
+            <?php endif; ?>
             <a href="/laundry-lms/orders" class="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors text-slate-300 hover:text-white">
                 Orders
             </a>

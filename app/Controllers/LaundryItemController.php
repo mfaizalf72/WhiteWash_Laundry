@@ -5,6 +5,7 @@ namespace Faizal\LaundryLms\Controllers;
 
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\LaundryItem;
+use PDOException;
 
 class LaundryItemController {
     public function index(): void {
@@ -16,9 +17,21 @@ class LaundryItemController {
     }
 
     public function store(): void {
-        $name = trim($_POST['name'] ?? '');
-        if (empty($name)) {
+        if (!isset($_POST['name'])) {
+            $_SESSION['error'] = "Laundry item name is required.";
+            Router::redirect('/items');
+            return;
+        }
+
+        $name = trim((string)$_POST['name']);
+        if ($name === '') {
             $_SESSION['error'] = "Laundry item name cannot be empty.";
+            Router::redirect('/items');
+            return;
+        }
+
+        if (mb_strlen($name) > 100) {
+            $_SESSION['error'] = "Laundry item name cannot exceed 100 characters.";
             Router::redirect('/items');
             return;
         }
@@ -29,22 +42,46 @@ class LaundryItemController {
             return;
         }
 
-        LaundryItem::create($name);
-        $_SESSION['success'] = "Laundry item '{$name}' created successfully.";
+        try {
+            LaundryItem::create($name);
+            $_SESSION['success'] = "Laundry item '{$name}' created successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Failed to create laundry item: " . $e->getMessage();
+        }
+
         Router::redirect('/items');
     }
 
     public function update(): void {
-        $id = (int)($_POST['id'] ?? 0);
-        $name = trim($_POST['name'] ?? '');
-
-        if ($id <= 0 || empty($name)) {
-            $_SESSION['error'] = "Invalid item details provided.";
+        if (!isset($_POST['id']) || !is_numeric($_POST['id']) || (int)$_POST['id'] <= 0) {
+            $_SESSION['error'] = "Invalid laundry item ID provided.";
             Router::redirect('/items');
             return;
         }
 
-        if (!LaundryItem::find($id)) {
+        $id = (int)$_POST['id'];
+
+        if (!isset($_POST['name'])) {
+            $_SESSION['error'] = "Laundry item name is required.";
+            Router::redirect('/items');
+            return;
+        }
+
+        $name = trim((string)$_POST['name']);
+        if ($name === '') {
+            $_SESSION['error'] = "Laundry item name cannot be empty.";
+            Router::redirect('/items');
+            return;
+        }
+
+        if (mb_strlen($name) > 100) {
+            $_SESSION['error'] = "Laundry item name cannot exceed 100 characters.";
+            Router::redirect('/items');
+            return;
+        }
+
+        $existing = LaundryItem::find($id);
+        if (!$existing) {
             $_SESSION['error'] = "Laundry item not found.";
             Router::redirect('/items');
             return;
@@ -56,21 +93,38 @@ class LaundryItemController {
             return;
         }
 
-        LaundryItem::update($id, $name);
-        $_SESSION['success'] = "Laundry item updated successfully.";
+        try {
+            LaundryItem::update($id, $name);
+            $_SESSION['success'] = "Laundry item updated successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Failed to update laundry item: " . $e->getMessage();
+        }
+
         Router::redirect('/items');
     }
 
     public function delete(): void {
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id <= 0 || !LaundryItem::find($id)) {
+        if (!isset($_POST['id']) || !is_numeric($_POST['id']) || (int)$_POST['id'] <= 0) {
+            $_SESSION['error'] = "Invalid laundry item ID provided.";
+            Router::redirect('/items');
+            return;
+        }
+
+        $id = (int)$_POST['id'];
+        $item = LaundryItem::find($id);
+        if (!$item) {
             $_SESSION['error'] = "Laundry item not found.";
             Router::redirect('/items');
             return;
         }
 
-        LaundryItem::delete($id);
-        $_SESSION['success'] = "Laundry item deleted successfully.";
+        try {
+            LaundryItem::delete($id);
+            $_SESSION['success'] = "Laundry item deleted successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Failed to delete laundry item: " . $e->getMessage();
+        }
+
         Router::redirect('/items');
     }
 }

@@ -43,12 +43,22 @@ function buildQueryString(array $override = []): string {
     <!-- Search & Filter Controls -->
     <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
         <form action="/laundry-lms/orders" method="GET" class="flex flex-col sm:flex-row gap-3">
+            <?php if ($pickupToday): ?>
+                <input type="hidden" name="pickup_today" value="1">
+            <?php endif; ?>
+            <?php if ($deliveryToday): ?>
+                <input type="hidden" name="delivery_today" value="1">
+            <?php endif; ?>
+            <?php if ($paymentDue): ?>
+                <input type="hidden" name="payment_due" value="1">
+            <?php endif; ?>
+
             <div class="relative flex-1">
                 <input type="text" name="search" value="<?= Security::e($search) ?>" placeholder="Search by Job ID, customer name, or mobile..." class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 <svg class="w-5 h-5 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
             </div>
             
-            <select name="status" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 bg-white outline-none">
+            <select name="status" onchange="this.form.submit()" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 bg-white outline-none cursor-pointer">
                 <option value="">All Statuses</option>
                 <option value="pickup_request" <?= $status === 'pickup_request' ? 'selected' : '' ?>>Pickup Request</option>
                 <option value="accepted" <?= $status === 'accepted' ? 'selected' : '' ?>>Accepted</option>

@@ -12,7 +12,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     
     <!-- Compiled Tailwind (Absolute path for XAMPP root resolution) -->
-    <link href="/laundry-lms/public/assets/css/app.css" rel="stylesheet">
+    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="flex flex-col min-h-screen">
     

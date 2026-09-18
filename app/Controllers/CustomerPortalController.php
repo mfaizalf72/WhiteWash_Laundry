@@ -215,7 +215,7 @@ class CustomerPortalController {
                 'special_instructions' => $finalInstructions
             ];
 
-            $orderId = Order::create($orderData, $customerId);
+            $orderId = Order::create($orderData, null);
 
             $_SESSION['success'] = "Pickup request submitted successfully! Total: ₹" . number_format($totalAmount, 2);
             Router::redirect('/customer/orders/show?id=' . $orderId);
@@ -320,11 +320,76 @@ class CustomerPortalController {
 
         try {
             Customer::updatePin($customerId, $newPin);
+            unset($_SESSION['requires_pin_change']);
             $_SESSION['success'] = "Your PIN has been updated successfully!";
         } catch (\Throwable $e) {
             $_SESSION['error'] = "Failed to update PIN: " . $e->getMessage();
         }
 
         Router::redirect('/customer/profile');
+    }
+
+    public function forcePinUpdateForm(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $customer   = Customer::find($customerId);
+
+        if (!$customer) {
+            $_SESSION['error'] = "Account not found.";
+            Router::redirect('/logout');
+            return;
+        }
+
+        // If customer does not require pin change, proceed to dashboard
+        if (empty($_SESSION['requires_pin_change'])) {
+            Router::redirect('/customer/dashboard');
+            return;
+        }
+
+        Router::view('customer/force_pin_update', [
+            'title'    => 'Change Default PIN - Launder',
+            'customer' => $customer
+        ], 'customer');
+    }
+
+    public function forcePinUpdate(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $customer   = Customer::find($customerId);
+
+        if (!$customer) {
+            $_SESSION['error'] = "Account not found.";
+            Router::redirect('/logout');
+            return;
+        }
+
+        $newPin     = trim($_POST['new_pin'] ?? '');
+        $confirmPin = trim($_POST['confirm_pin'] ?? '');
+
+        if (strlen($newPin) !== 4 || !ctype_digit($newPin)) {
+            $_SESSION['error'] = "New PIN must be a 4-digit number.";
+            Router::redirect('/customer/force-pin-update');
+            return;
+        }
+
+        if ($newPin === '1234') {
+            $_SESSION['error'] = "You cannot use the default PIN (1234). Please choose a different 4-digit PIN.";
+            Router::redirect('/customer/force-pin-update');
+            return;
+        }
+
+        if ($newPin !== $confirmPin) {
+            $_SESSION['error'] = "New PIN and confirmation PIN do not match.";
+            Router::redirect('/customer/force-pin-update');
+            return;
+        }
+
+        try {
+            Customer::updatePin($customerId, $newPin);
+            unset($_SESSION['requires_pin_change']);
+            $_SESSION['success'] = "PIN updated successfully! You can now access your dashboard.";
+            Router::redirect('/customer/dashboard');
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Failed to update PIN: " . $e->getMessage();
+            Router::redirect('/customer/force-pin-update');
+        }
     }
 }

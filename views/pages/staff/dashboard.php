@@ -42,16 +42,16 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
             <div class="p-6 text-center text-slate-400 text-sm">No pending pickup requests at this time.</div>
         <?php else: ?>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="w-full text-left border-collapse text-sm" style="table-layout: fixed; width: 100%;">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <th class="px-4 py-3">Job ID</th>
-                            <th class="px-4 py-3">Customer & Mobile</th>
-                            <th class="px-4 py-3">Pickup Date</th>
-                            <th class="px-4 py-3">Address</th>
-                            <th class="px-4 py-3">Instructions</th>
-                            <th class="px-4 py-3">Assignment</th>
-                            <th class="px-4 py-3 text-right">Action</th>
+                            <th style="width: 110px;" class="px-3 py-3">Job ID</th>
+                            <th style="width: 140px;" class="px-3 py-3">Customer & Mobile</th>
+                            <th style="width: 100px;" class="px-3 py-3 whitespace-nowrap">Pickup Date</th>
+                            <th style="width: 110px;" class="px-3 py-3">Address</th>
+                            <th style="width: 110px;" class="px-3 py-3">Instructions</th>
+                            <th style="width: 120px;" class="px-3 py-3">Assignment</th>
+                            <th style="width: 220px;" class="px-3 py-3 text-right whitespace-nowrap">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-slate-700">
@@ -61,32 +61,42 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                             $nextStatus     = Order::getNextStatus($ord['status']);
                         ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
-                                <td class="px-4 py-3.5 font-bold text-slate-900">
-                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
-                                        <?= Security::e($ord['job_id']) ?>
-                                    </a>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 max-w-[130px] truncate" title="<?= Security::e($ord['job_id']) ?>">
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
+                                            <?= Security::e($ord['job_id']) ?>
+                                        </a>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3.5">
-                                    <div class="font-semibold text-slate-900"><?= Security::e($ord['customer_name']) ?></div>
-                                    <div class="text-xs text-slate-500"><?= Security::e($ord['customer_mobile']) ?></div>
+                                <td class="px-3 py-3.5">
+                                    <div class="font-semibold text-slate-900 truncate" style="max-width: 120px;" title="<?= Security::e($ord['customer_name']) ?>"><?= Security::e($ord['customer_name']) ?></div>
+                                    <div class="text-xs text-slate-500 whitespace-nowrap"><?= Security::e($ord['customer_mobile']) ?></div>
                                 </td>
-                                <td class="px-4 py-3.5 text-slate-600 font-medium"><?= date('M d, Y', strtotime($ord['pickup_date'])) ?></td>
-                                <td class="px-4 py-3.5 text-slate-600 text-xs max-w-xs truncate"><?= Security::e($ord['customer_address'] ?? 'N/A') ?></td>
-                                <td class="px-4 py-3.5 text-slate-500 text-xs max-w-xs truncate"><?= Security::e($ord['special_instructions'] ?? '-') ?></td>
-                                <td class="px-4 py-3.5">
+                                <td class="px-3 py-3.5 text-slate-600 font-medium whitespace-nowrap"><?= date('M d, Y', strtotime($ord['pickup_date'])) ?></td>
+                                <td class="px-3 py-3.5 text-slate-600 text-xs">
+                                    <div style="max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?= Security::e($ord['customer_address'] ?? '') ?>">
+                                        <?= Security::e($ord['customer_address'] ?? 'N/A') ?>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3.5 text-slate-500 text-xs">
+                                    <div style="max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?= Security::e($ord['special_instructions'] ?? '') ?>">
+                                        <?= Security::e($ord['special_instructions'] ?? '-') ?>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
                                     <?php if ($isUnassigned): ?>
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800">Unassigned</span>
                                     <?php else: ?>
-                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800">Assigned: <?= Security::e($ord['staff_name']) ?></span>
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-100 text-blue-800 max-w-[110px] truncate" title="<?= Security::e($ord['staff_name']) ?>"><?= Security::e($ord['staff_name']) ?></span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-4 py-3.5 text-right space-x-2">
+                                <td class="px-3 py-3.5 text-right whitespace-nowrap space-x-1">
                                     <?php if ($isUnassigned): ?>
                                         <form action="/laundry-lms/orders/claim" method="POST" class="inline-block">
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="order_id" value="<?= (int)$ord['id'] ?>">
                                             <input type="hidden" name="redirect_to" value="/staff/dashboard">
-                                            <button type="submit" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shadow-sm transition-colors">
+                                            <button type="submit" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #d97706; color: #ffffff;">
                                                 Claim Order
                                             </button>
                                         </form>
@@ -98,7 +108,7 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                                             <input type="hidden" name="id" value="<?= (int)$ord['id'] ?>">
                                             <input type="hidden" name="status" value="<?= Security::e($nextStatus) ?>">
                                             <input type="hidden" name="redirect_to" value="/staff/dashboard">
-                                            <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors">
+                                            <button type="submit" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #059669; color: #ffffff;">
                                                 Mark <?= Security::e(str_replace('_', ' ', $nextStatus)) ?> &rarr;
                                             </button>
                                         </form>
@@ -127,17 +137,17 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
             <div class="p-6 text-center text-slate-400 text-sm">No orders currently in processing.</div>
         <?php else: ?>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="w-full text-left border-collapse text-sm" style="table-layout: fixed; width: 100%;">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <th class="px-4 py-3">Job ID</th>
-                            <th class="px-4 py-3">Customer</th>
-                            <th class="px-4 py-3">Current Status</th>
-                            <th class="px-4 py-3">Pickup Date</th>
-                            <th class="px-4 py-3">Delivery Date</th>
-                            <th class="px-4 py-3">Total Amount</th>
-                            <th class="px-4 py-3">Outstanding</th>
-                            <th class="px-4 py-3 text-right">Next Action</th>
+                            <th style="width: 95px;" class="px-3 py-3">Job ID</th>
+                            <th style="width: 120px;" class="px-3 py-3">Customer</th>
+                            <th style="width: 140px;" class="px-3 py-3">Current Status</th>
+                            <th style="width: 95px;" class="px-3 py-3">Pickup Date</th>
+                            <th style="width: 95px;" class="px-3 py-3">Delivery Date</th>
+                            <th style="width: 80px;" class="px-3 py-3">Total Amount</th>
+                            <th style="width: 80px;" class="px-3 py-3">Outstanding</th>
+                            <th style="width: 225px;" class="px-3 py-3 text-right whitespace-nowrap">Next Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-slate-700">
@@ -146,31 +156,37 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                             $nextStatus  = Order::getNextStatus($ord['status']);
                         ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
-                                <td class="px-4 py-3.5 font-bold text-slate-900">
-                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
-                                        <?= Security::e($ord['job_id']) ?>
-                                    </a>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 max-w-[110px] truncate" title="<?= Security::e($ord['job_id']) ?>">
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
+                                            <?= Security::e($ord['job_id']) ?>
+                                        </a>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3.5 font-medium text-slate-900"><?= Security::e($ord['customer_name']) ?></td>
-                                <td class="px-4 py-3.5">
+                                <td class="px-3 py-3.5">
+                                    <div class="font-medium text-slate-900 truncate" style="max-width: 130px;" title="<?= Security::e($ord['customer_name']) ?>">
+                                        <?= Security::e($ord['customer_name']) ?>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
                                         <?= Security::e(str_replace('_', ' ', $ord['status'])) ?>
                                     </span>
                                 </td>
-                                <td class="px-4 py-3.5 text-slate-600"><?= date('M d, Y', strtotime($ord['pickup_date'])) ?></td>
-                                <td class="px-4 py-3.5 text-slate-600"><?= !empty($ord['delivery_date']) ? date('M d, Y', strtotime($ord['delivery_date'])) : '-' ?></td>
-                                <td class="px-4 py-3.5 font-semibold text-slate-800">₹<?= number_format((float)$ord['total_amount'], 2) ?></td>
-                                <td class="px-4 py-3.5 font-semibold <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-600' ?>">
+                                <td class="px-3 py-3.5 text-slate-600 whitespace-nowrap"><?= date('M d, Y', strtotime($ord['pickup_date'])) ?></td>
+                                <td class="px-3 py-3.5 text-slate-600 whitespace-nowrap"><?= !empty($ord['delivery_date']) ? date('M d, Y', strtotime($ord['delivery_date'])) : '-' ?></td>
+                                <td class="px-3 py-3.5 font-semibold text-slate-800 whitespace-nowrap">₹<?= number_format((float)$ord['total_amount'], 2) ?></td>
+                                <td class="px-3 py-3.5 font-semibold whitespace-nowrap <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-600' ?>">
                                     ₹<?= number_format($outstanding, 2) ?>
                                 </td>
-                                <td class="px-4 py-3.5 text-right">
+                                <td class="px-3 py-3.5 text-right whitespace-nowrap">
                                     <?php if ($nextStatus): ?>
                                         <form action="/laundry-lms/orders/status" method="POST" class="inline-block">
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="id" value="<?= (int)$ord['id'] ?>">
                                             <input type="hidden" name="status" value="<?= Security::e($nextStatus) ?>">
                                             <input type="hidden" name="redirect_to" value="/staff/dashboard">
-                                            <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition-colors">
+                                            <button type="submit" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #2563eb; color: #ffffff;">
                                                 Advance to <?= Security::e(str_replace('_', ' ', $nextStatus)) ?> &rarr;
                                             </button>
                                         </form>
@@ -199,16 +215,16 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
             <div class="p-6 text-center text-slate-400 text-sm">No orders in ready or delivery queue.</div>
         <?php else: ?>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="w-full text-left border-collapse text-sm" style="table-layout: fixed; width: 100%;">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <th class="px-4 py-3">Job ID</th>
-                            <th class="px-4 py-3">Customer & Mobile</th>
-                            <th class="px-4 py-3">Delivery Address</th>
-                            <th class="px-4 py-3">Delivery Date</th>
-                            <th class="px-4 py-3">Payment Status</th>
-                            <th class="px-4 py-3">Outstanding</th>
-                            <th class="px-4 py-3 text-right">Next Action</th>
+                            <th style="width: 110px;" class="px-3 py-3">Job ID</th>
+                            <th style="width: 140px;" class="px-3 py-3">Customer & Mobile</th>
+                            <th style="width: 130px;" class="px-3 py-3">Delivery Address</th>
+                            <th style="width: 100px;" class="px-3 py-3 whitespace-nowrap">Delivery Date</th>
+                            <th style="width: 90px;" class="px-3 py-3">Payment Status</th>
+                            <th style="width: 90px;" class="px-3 py-3">Outstanding</th>
+                            <th style="width: 180px;" class="px-3 py-3 text-right whitespace-nowrap">Next Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-slate-700">
@@ -217,35 +233,41 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                             $nextStatus  = Order::getNextStatus($ord['status']);
                         ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
-                                <td class="px-4 py-3.5 font-bold text-slate-900">
-                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
-                                        <?= Security::e($ord['job_id']) ?>
-                                    </a>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 max-w-[110px] truncate" title="<?= Security::e($ord['job_id']) ?>">
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
+                                            <?= Security::e($ord['job_id']) ?>
+                                        </a>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3.5">
-                                    <div class="font-semibold text-slate-900"><?= Security::e($ord['customer_name']) ?></div>
-                                    <div class="text-xs text-slate-500"><?= Security::e($ord['customer_mobile']) ?></div>
+                                <td class="px-3 py-3.5">
+                                    <div class="font-semibold text-slate-900 truncate" style="max-width: 130px;" title="<?= Security::e($ord['customer_name']) ?>"><?= Security::e($ord['customer_name']) ?></div>
+                                    <div class="text-xs text-slate-500 whitespace-nowrap"><?= Security::e($ord['customer_mobile']) ?></div>
                                 </td>
-                                <td class="px-4 py-3.5 text-xs text-slate-600 max-w-xs truncate"><?= Security::e($ord['customer_address'] ?? 'N/A') ?></td>
-                                <td class="px-4 py-3.5 text-slate-600 font-medium"><?= !empty($ord['delivery_date']) ? date('M d, Y', strtotime($ord['delivery_date'])) : '-' ?></td>
-                                <td class="px-4 py-3.5">
+                                <td class="px-3 py-3.5 text-xs text-slate-600">
+                                    <div style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="<?= Security::e($ord['customer_address'] ?? '') ?>">
+                                        <?= Security::e($ord['customer_address'] ?? 'N/A') ?>
+                                    </div>
+                                </td>
+                                <td class="px-3 py-3.5 text-slate-600 font-medium whitespace-nowrap"><?= !empty($ord['delivery_date']) ? date('M d, Y', strtotime($ord['delivery_date'])) : '-' ?></td>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
                                     <?php if ($ord['payment_status'] === 'paid'): ?>
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">Paid</span>
                                     <?php else: ?>
                                         <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Due</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="px-4 py-3.5 font-semibold <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-600' ?>">
+                                <td class="px-3 py-3.5 font-semibold whitespace-nowrap <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-600' ?>">
                                     ₹<?= number_format($outstanding, 2) ?>
                                 </td>
-                                <td class="px-4 py-3.5 text-right">
+                                <td class="px-3 py-3.5 text-right whitespace-nowrap">
                                     <?php if ($nextStatus): ?>
                                         <form action="/laundry-lms/orders/status" method="POST" class="inline-block">
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="id" value="<?= (int)$ord['id'] ?>">
                                             <input type="hidden" name="status" value="<?= Security::e($nextStatus) ?>">
                                             <input type="hidden" name="redirect_to" value="/staff/dashboard">
-                                            <button type="submit" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-semibold shadow-sm transition-colors">
+                                            <button type="submit" class="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #9333ea; color: #ffffff;">
                                                 Mark <?= Security::e(str_replace('_', ' ', $nextStatus)) ?> &rarr;
                                             </button>
                                         </form>
@@ -274,16 +296,16 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
             <div class="p-6 text-center text-slate-400 text-sm">No delivered orders with pending payment.</div>
         <?php else: ?>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse text-sm">
+                <table class="w-full text-left border-collapse text-sm" style="table-layout: fixed; width: 100%;">
                     <thead>
                         <tr class="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                            <th class="px-4 py-3">Job ID</th>
-                            <th class="px-4 py-3">Customer & Mobile</th>
-                            <th class="px-4 py-3">Total Amount</th>
-                            <th class="px-4 py-3">Amount Paid</th>
-                            <th class="px-4 py-3">Outstanding Balance</th>
-                            <th class="px-4 py-3">Payment Status</th>
-                            <th class="px-4 py-3 text-right">Action</th>
+                            <th style="width: 110px;" class="px-3 py-3">Job ID</th>
+                            <th style="width: 160px;" class="px-3 py-3">Customer & Mobile</th>
+                            <th style="width: 95px;" class="px-3 py-3">Total Amount</th>
+                            <th style="width: 95px;" class="px-3 py-3">Amount Paid</th>
+                            <th style="width: 110px;" class="px-3 py-3">Outstanding Balance</th>
+                            <th style="width: 90px;" class="px-3 py-3">Payment Status</th>
+                            <th style="width: 180px;" class="px-3 py-3 text-right whitespace-nowrap">Action</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-slate-700">
@@ -291,25 +313,27 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                             $outstanding = max(0, round((float)$ord['total_amount'] - (float)$ord['amount_paid'], 2));
                         ?>
                             <tr class="hover:bg-slate-50/80 transition-colors">
-                                <td class="px-4 py-3.5 font-bold text-slate-900">
-                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
-                                        <?= Security::e($ord['job_id']) ?>
-                                    </a>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
+                                    <div class="font-bold text-slate-900 max-w-[110px] truncate" title="<?= Security::e($ord['job_id']) ?>">
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="text-blue-600 hover:underline">
+                                            <?= Security::e($ord['job_id']) ?>
+                                        </a>
+                                    </div>
                                 </td>
-                                <td class="px-4 py-3.5">
-                                    <div class="font-semibold text-slate-900"><?= Security::e($ord['customer_name']) ?></div>
-                                    <div class="text-xs text-slate-500"><?= Security::e($ord['customer_mobile']) ?></div>
+                                <td class="px-3 py-3.5">
+                                    <div class="font-semibold text-slate-900 truncate" style="max-width: 150px;" title="<?= Security::e($ord['customer_name']) ?>"><?= Security::e($ord['customer_name']) ?></div>
+                                    <div class="text-xs text-slate-500 whitespace-nowrap"><?= Security::e($ord['customer_mobile']) ?></div>
                                 </td>
-                                <td class="px-4 py-3.5 font-semibold text-slate-800">₹<?= number_format((float)$ord['total_amount'], 2) ?></td>
-                                <td class="px-4 py-3.5 text-slate-600">₹<?= number_format((float)$ord['amount_paid'], 2) ?></td>
-                                <td class="px-4 py-3.5 font-bold text-rose-600">₹<?= number_format($outstanding, 2) ?></td>
-                                <td class="px-4 py-3.5">
+                                <td class="px-3 py-3.5 font-semibold text-slate-800 whitespace-nowrap">₹<?= number_format((float)$ord['total_amount'], 2) ?></td>
+                                <td class="px-3 py-3.5 text-slate-600 whitespace-nowrap">₹<?= number_format((float)$ord['amount_paid'], 2) ?></td>
+                                <td class="px-3 py-3.5 font-bold text-rose-600 whitespace-nowrap">₹<?= number_format($outstanding, 2) ?></td>
+                                <td class="px-3 py-3.5 whitespace-nowrap">
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800 uppercase">
                                         <?= Security::e($ord['payment_status']) ?>
                                     </span>
                                 </td>
-                                <td class="px-4 py-3.5 text-right">
-                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold shadow-sm transition-colors inline-block">
+                                <td class="px-3 py-3.5 text-right whitespace-nowrap">
+                                    <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold shadow-sm transition-colors inline-flex items-center whitespace-nowrap" style="background-color: #e11d48; color: #ffffff;">
                                         Record Payment &rarr;
                                     </a>
                                 </td>

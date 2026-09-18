@@ -11,7 +11,14 @@ class User {
         $stmt = $db->prepare("SELECT * FROM users WHERE mobile = :mobile AND is_active = 1 AND deleted_at IS NULL LIMIT 1");
         $stmt->execute(['mobile' => $mobile]);
         $user = $stmt->fetch();
-        
+        return $user ?: null;
+    }
+
+    public static function find(int $id): ?array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM users WHERE id = :id AND deleted_at IS NULL LIMIT 1");
+        $stmt->execute(['id' => $id]);
+        $user = $stmt->fetch();
         return $user ?: null;
     }
 
