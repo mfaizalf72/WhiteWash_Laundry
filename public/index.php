@@ -105,6 +105,12 @@ $router->post('/orders/claim', 'Faizal\LaundryLms\Controllers\OrderController@cl
 // Reports Route (Admin & Staff)
 $router->get('/reports', 'Faizal\LaundryLms\Controllers\ReportController@index', $authRole);
 
+// Admin Staff Management Routes (Admin Only)
+$router->get('/admin/staff', 'Faizal\LaundryLms\Controllers\Admin\StaffController@index', $adminOnlyAuth);
+$router->post('/admin/staff', 'Faizal\LaundryLms\Controllers\Admin\StaffController@store', $adminOnlyAuthCsrf);
+$router->post('/admin/staff/update', 'Faizal\LaundryLms\Controllers\Admin\StaffController@update', $adminOnlyAuthCsrf);
+$router->post('/admin/staff/toggle-status', 'Faizal\LaundryLms\Controllers\Admin\StaffController@toggleStatus', $adminOnlyAuthCsrf);
+
 // Admin Settings Route (Admin Only)
 $router->get('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@index', $adminOnlyAuth);
 $router->post('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@update', $adminOnlyAuthCsrf);
