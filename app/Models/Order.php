@@ -4,6 +4,11 @@ declare(strict_types=1);
 namespace Faizal\LaundryLms\Models;
 
 use Faizal\LaundryLms\Core\Database;
+use Faizal\LaundryLms\Helpers\OrderMetadata;
+use Faizal\LaundryLms\Models\Settings;
+use Faizal\LaundryLms\Models\LaundryItem;
+use Faizal\LaundryLms\Models\WorkType;
+use Faizal\LaundryLms\Models\Pricing;
 use PDO;
 
 class Order {
@@ -153,8 +158,6 @@ class Order {
     public const STATUS_SEQUENCE = [
         'pickup_request'       => 'accepted',
         'accepted'             => 'picked_up',
-        'picked_up'            => 'inspection_completed',
-        'inspection_completed' => 'price_confirmed',
         'price_confirmed'      => 'processing',
         'processing'           => 'ready',
         'ready'                => 'out_for_delivery',
@@ -173,6 +176,14 @@ class Order {
     public static function updateStatus(int $orderId, string $requestedNewStatus, int $userId, string $userRole): bool {
         if (!in_array($userRole, ['admin', 'staff'], true)) {
             throw new \DomainException("Unauthorized: Role '{$userRole}' is not permitted to change order status.");
+        }
+
+        if ($requestedNewStatus === 'inspection_completed') {
+            throw new \DomainException("Transition to 'inspection_completed' must be performed via submitInspection().");
+        }
+
+        if ($requestedNewStatus === 'price_confirmed') {
+            throw new \DomainException("Transition to 'price_confirmed' must be performed via confirmPriceForCustomer() or overridePriceApprovalByAdmin().");
         }
 
         $db = Database::getConnection();
@@ -222,6 +233,333 @@ class Order {
                 'old_status' => $currentStatus,
                 'new_status' => $requestedNewStatus,
                 'updated_by' => $userId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function submitInspection(int $orderId, array $data, int $userId, string $role): bool {
+        if (!in_array($role, ['admin', 'staff'], true)) {
+            throw new \DomainException("Unauthorized: Role '{$role}' is not permitted to perform inspection.");
+        }
+
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            // Lock order row
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            $currentStatus = $order['status'];
+
+            // Price freeze check: once price_confirmed or later, total_amount cannot be changed
+            if (in_array($currentStatus, ['price_confirmed', 'processing', 'ready', 'out_for_delivery', 'delivered', 'completed'], true)) {
+                $db->rollBack();
+                throw new \DomainException("Order price is already confirmed and permanently locked. Cannot submit inspection or modify price.");
+            }
+
+            // Must be picked_up or inspection_completed
+            if (!in_array($currentStatus, ['picked_up', 'inspection_completed'], true)) {
+                $db->rollBack();
+                throw new \DomainException("Inspection can only be performed when order is in 'picked_up' or 'inspection_completed' status (current: '{$currentStatus}').");
+            }
+
+            $itemId           = (int)($data['item_id'] ?? 0);
+            $workTypeId       = (int)($data['work_type_id'] ?? 0);
+            $rawQty           = $data['quantity'] ?? null;
+            $garmentNotes     = trim((string)($data['garment_notes'] ?? ''));
+            $adjustmentReason = trim((string)($data['adjustment_reason'] ?? ''));
+
+            if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Quantity or weight must be a valid number greater than zero.");
+            }
+            $quantity = round((float)$rawQty, 2);
+
+            // Verify active item
+            $itemObj = LaundryItem::find($itemId);
+            if (!$itemObj) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Selected laundry item is invalid or not found.");
+            }
+
+            // Verify active work type
+            $workTypeObj = WorkType::find($workTypeId);
+            if (!$workTypeObj) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Selected work type is invalid or not found.");
+            }
+
+            // Verify pricing
+            $pricing = Pricing::find($itemId, $workTypeId);
+            if (!$pricing) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("No valid pricing configuration exists for the selected item and work type.");
+            }
+
+            $unitPrice   = (float)$pricing['price'];
+            $pricingType = $pricing['pricing_type'];
+            $unitLabel   = ($pricingType === 'per_kg') ? 'kg' : 'item(s)';
+            $itemSubtotal = round($unitPrice * $quantity, 2);
+
+            // Business settings fee logic
+            $settings = Settings::get();
+            $pickupCharge    = (float)($settings['pickup_charge'] ?? 0);
+            $deliveryCharge  = (float)($settings['delivery_charge'] ?? 0);
+            $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
+
+            $addedCharges = 0.00;
+            if ($freePickupLimit <= 0 || $itemSubtotal < $freePickupLimit) {
+                $addedCharges = $pickupCharge + $deliveryCharge;
+            }
+
+            $newTotal = round($itemSubtotal + $addedCharges, 2);
+
+            // Strict Price Reduction Rule: new_total < amount_paid is REJECTED
+            $amountPaid = round((float)$order['amount_paid'], 2);
+            if ($newTotal < $amountPaid - 0.001) {
+                $db->rollBack();
+                throw new \DomainException(sprintf(
+                    "Cannot revise order total to ₹%.2f: The proposed final price is lower than the amount already collected (₹%.2f) and refunds/reversals are not supported in V1.",
+                    $newTotal,
+                    $amountPaid
+                ));
+            }
+
+            // Payment status recalculation
+            if ($amountPaid <= 0.001) {
+                $newPaymentStatus = 'unpaid';
+            } elseif (abs($newTotal - $amountPaid) < 0.001) {
+                $newPaymentStatus = 'paid';
+            } else {
+                $newPaymentStatus = 'partial';
+            }
+
+            // Get inspector name
+            $userStmt = $db->prepare("SELECT name FROM users WHERE id = :uid");
+            $userStmt->execute(['uid' => $userId]);
+            $inspectorName = $userStmt->fetchColumn() ?: "User #{$userId}";
+
+            // Extract existing metadata
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $customerNote = $extracted['customer_note'];
+            $meta = $extracted['metadata'];
+
+            $inspectionPayload = [
+                'inspected_by'      => $userId,
+                'inspected_by_name' => (string)$inspectorName,
+                'inspected_at'      => date('Y-m-d H:i:s'),
+                'item_id'           => $itemId,
+                'item_name'         => $itemObj['name'],
+                'work_type_id'      => $workTypeId,
+                'work_type_name'    => $workTypeObj['name'],
+                'quantity'          => $quantity,
+                'unit_label'        => $unitLabel,
+                'unit_price'        => $unitPrice,
+                'item_subtotal'     => $itemSubtotal,
+                'pickup_fee'        => ($addedCharges > 0) ? $pickupCharge : 0.00,
+                'delivery_fee'      => ($addedCharges > 0) ? $deliveryCharge : 0.00,
+                'free_pickup_limit' => $freePickupLimit,
+                'calculated_total'  => $newTotal,
+                'garment_notes'     => $garmentNotes
+            ];
+
+            $revisionHash = OrderMetadata::generateRevisionHash($inspectionPayload);
+
+            $prevTotal = round((float)$order['total_amount'], 2);
+            $existingRevisions = $meta['revisions'] ?? [];
+            $existingRevisions[] = [
+                'revised_by'     => $userId,
+                'revised_at'     => date('Y-m-d H:i:s'),
+                'previous_total' => $prevTotal,
+                'new_total'      => $newTotal,
+                'quantity'       => $quantity,
+                'unit_label'     => $unitLabel,
+                'unit_price'     => $unitPrice,
+                'reason'         => !empty($adjustmentReason) ? $adjustmentReason : ($currentStatus === 'picked_up' ? 'Initial inspection completed' : 'Inspection revised'),
+                'revision_id'    => $revisionHash
+            ];
+
+            $meta['version']             = 1;
+            $meta['customer_note']       = $customerNote;
+            $meta['inspection_revision'] = $revisionHash;
+            $meta['inspection']          = $inspectionPayload;
+            $meta['revisions']           = $existingRevisions;
+            if (!isset($meta['approval'])) {
+                $meta['approval'] = [
+                    'status'           => 'pending',
+                    'approved_by'      => null,
+                    'approved_by_role' => null,
+                    'approved_at'      => null,
+                    'method'           => null,
+                    'override_reason'  => null
+                ];
+            }
+
+            $newInstructions = OrderMetadata::compose($customerNote, $meta);
+
+            // Update order record
+            $upd = $db->prepare("UPDATE orders SET 
+                total_amount = :total, 
+                payment_status = :pay_stat, 
+                status = 'inspection_completed', 
+                special_instructions = :inst, 
+                updated_at = CURRENT_TIMESTAMP 
+                WHERE id = :id");
+            $upd->execute([
+                'total'    => $newTotal,
+                'pay_stat' => $newPaymentStatus,
+                'inst'     => $newInstructions,
+                'id'       => $orderId
+            ]);
+
+            // If advancing from picked_up to inspection_completed, log status history
+            if ($currentStatus === 'picked_up') {
+                $hist = $db->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, updated_by) VALUES (:oid, 'picked_up', 'inspection_completed', :uid)");
+                $hist->execute([
+                    'oid' => $orderId,
+                    'uid' => $userId
+                ]);
+            }
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function confirmPriceForCustomer(int $orderId, int $customerId, string $expectedRevision): bool {
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ((int)$order['customer_id'] !== $customerId) {
+                $db->rollBack();
+                throw new \DomainException("Access denied: You do not own order #{$orderId}.");
+            }
+
+            if ($order['status'] !== 'inspection_completed') {
+                $db->rollBack();
+                throw new \DomainException("Order #{$orderId} is not awaiting customer price approval (current status: '{$order['status']}').");
+            }
+
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $meta = $extracted['metadata'];
+            $currentRevision = (string)($meta['inspection_revision'] ?? '');
+
+            if (empty($expectedRevision) || $expectedRevision !== $currentRevision) {
+                $db->rollBack();
+                throw new \DomainException("The order price was updated. Please review the latest price before approving.");
+            }
+
+            $meta['approval'] = [
+                'status'           => 'approved',
+                'approved_by'      => $customerId,
+                'approved_by_role' => 'customer',
+                'approved_at'      => date('Y-m-d H:i:s'),
+                'method'           => 'customer_portal',
+                'override_reason'  => null
+            ];
+
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $upd = $db->prepare("UPDATE orders SET status = 'price_confirmed', special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute([
+                'inst' => $newInstructions,
+                'id'   => $orderId
+            ]);
+
+            $hist = $db->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, updated_by) VALUES (:oid, 'inspection_completed', 'price_confirmed', :uid)");
+            $hist->execute([
+                'oid' => $orderId,
+                'uid' => $customerId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function overridePriceApprovalByAdmin(int $orderId, int $adminId, string $reason): bool {
+        $reason = trim($reason);
+        if (strlen($reason) < 10) {
+            throw new \InvalidArgumentException("A valid emergency override reason (minimum 10 characters) is mandatory.");
+        }
+
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ($order['status'] !== 'inspection_completed') {
+                $db->rollBack();
+                throw new \DomainException("Order #{$orderId} is not in inspection_completed status (current status: '{$order['status']}').");
+            }
+
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $meta = $extracted['metadata'];
+
+            $meta['approval'] = [
+                'status'           => 'approved',
+                'approved_by'      => $adminId,
+                'approved_by_role' => 'admin',
+                'approved_at'      => date('Y-m-d H:i:s'),
+                'method'           => 'admin_emergency_override',
+                'override_reason'  => $reason
+            ];
+
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $upd = $db->prepare("UPDATE orders SET status = 'price_confirmed', special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute([
+                'inst' => $newInstructions,
+                'id'   => $orderId
+            ]);
+
+            $hist = $db->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, updated_by) VALUES (:oid, 'inspection_completed', 'price_confirmed', :uid)");
+            $hist->execute([
+                'oid' => $orderId,
+                'uid' => $adminId
             ]);
 
             $db->commit();

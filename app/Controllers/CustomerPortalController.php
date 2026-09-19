@@ -12,6 +12,7 @@ use Faizal\LaundryLms\Models\Pricing;
 use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
 use Faizal\LaundryLms\Helpers\Security;
+use Faizal\LaundryLms\Helpers\OrderMetadata;
 
 class CustomerPortalController {
 
@@ -73,14 +74,17 @@ class CustomerPortalController {
             return;
         }
 
-        $history  = Order::getStatusHistory($orderId);
-        $payments = Payment::getByOrderId($orderId);
+        $extracted = OrderMetadata::extract($order['special_instructions']);
+        $history   = Order::getStatusHistory($orderId);
+        $payments  = Payment::getByOrderId($orderId);
 
         Router::view('customer/orders/show', [
-            'title'    => 'Order ' . $order['job_id'] . ' - Launder',
-            'order'    => $order,
-            'history'  => $history,
-            'payments' => $payments
+            'title'        => 'Order ' . $order['job_id'] . ' - Launder',
+            'order'        => $order,
+            'history'      => $history,
+            'payments'     => $payments,
+            'customerNote' => $extracted['customer_note'],
+            'metadata'     => $extracted['metadata']
         ], 'customer');
     }
 
@@ -391,5 +395,26 @@ class CustomerPortalController {
             $_SESSION['error'] = "Failed to update PIN: " . $e->getMessage();
             Router::redirect('/customer/force-pin-update');
         }
+    }
+
+    public function approvePrice(): void {
+        $customerId       = (int)($_SESSION['user_id'] ?? 0);
+        $orderId          = (int)($_POST['order_id'] ?? 0);
+        $expectedRevision = trim((string)($_POST['expected_revision'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for price approval.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        try {
+            Order::confirmPriceForCustomer($orderId, $customerId, $expectedRevision);
+            $_SESSION['success'] = "Order price approved successfully! Your order is now confirmed for processing.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        Router::redirect('/customer/orders/show?id=' . $orderId);
     }
 }

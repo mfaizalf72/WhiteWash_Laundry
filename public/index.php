@@ -59,6 +59,8 @@ $router->post('/customer/force-pin-update', 'Faizal\LaundryLms\Controllers\Custo
 $router->get('/customer/dashboard', 'Faizal\LaundryLms\Controllers\CustomerPortalController@dashboard', $customerAuth);
 $router->get('/customer/orders', 'Faizal\LaundryLms\Controllers\CustomerPortalController@orders', $customerAuth);
 $router->get('/customer/orders/show', 'Faizal\LaundryLms\Controllers\CustomerPortalController@showOrder', $customerAuth);
+$router->post('/customer/orders/approve-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
+$router->post('/customer/orders/approve', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
 $router->get('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@createOrderForm', $customerAuth);
 $router->post('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@storeOrder', $customerAuthCsrf);
 $router->get('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@profile', $customerAuth);
@@ -101,6 +103,8 @@ $router->get('/orders/show', 'Faizal\LaundryLms\Controllers\OrderController@show
 $router->post('/orders/status', 'Faizal\LaundryLms\Controllers\OrderController@updateStatus', $authRoleCsrf);
 $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@recordPayment', $authRoleCsrf);
 $router->post('/orders/claim', 'Faizal\LaundryLms\Controllers\OrderController@claimOrder', $staffOnlyAuthCsrf);
+$router->post('/orders/inspect', 'Faizal\LaundryLms\Controllers\OrderController@submitInspection', $authRoleCsrf);
+$router->post('/orders/override-price-approval', 'Faizal\LaundryLms\Controllers\OrderController@overridePriceApproval', $adminOnlyAuthCsrf);
 
 // Reports Route (Admin & Staff)
 $router->get('/reports', 'Faizal\LaundryLms\Controllers\ReportController@index', $authRole);

@@ -180,7 +180,28 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                                     ₹<?= number_format($outstanding, 2) ?>
                                 </td>
                                 <td class="px-3 py-3.5 text-right whitespace-nowrap">
-                                    <?php if ($nextStatus): ?>
+                                    <?php if ($ord['status'] === 'picked_up'): ?>
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #2563eb; color: #ffffff;">
+                                            Inspect &amp; Price &rarr;
+                                        </a>
+                                    <?php elseif ($ord['status'] === 'inspection_completed'): ?>
+                                        <span class="inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-amber-100 text-amber-800 mr-1">
+                                            Awaiting Approval
+                                        </span>
+                                        <a href="/laundry-lms/orders/show?id=<?= (int)$ord['id'] ?>" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-semibold transition-colors border border-slate-200 inline-flex items-center">
+                                            Re-inspect / Edit
+                                        </a>
+                                    <?php elseif ($ord['status'] === 'price_confirmed'): ?>
+                                        <form action="/laundry-lms/orders/status" method="POST" class="inline-block">
+                                            <?= Csrf::field() ?>
+                                            <input type="hidden" name="id" value="<?= (int)$ord['id'] ?>">
+                                            <input type="hidden" name="status" value="processing">
+                                            <input type="hidden" name="redirect_to" value="/staff/dashboard">
+                                            <button type="submit" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-sm transition-colors whitespace-nowrap inline-flex items-center" style="background-color: #059669; color: #ffffff;">
+                                                Start Processing &rarr;
+                                            </button>
+                                        </form>
+                                    <?php elseif ($nextStatus): ?>
                                         <form action="/laundry-lms/orders/status" method="POST" class="inline-block">
                                             <?= Csrf::field() ?>
                                             <input type="hidden" name="id" value="<?= (int)$ord['id'] ?>">

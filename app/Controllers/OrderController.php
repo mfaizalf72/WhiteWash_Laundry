@@ -11,6 +11,7 @@ use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
 use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
+use Faizal\LaundryLms\Helpers\OrderMetadata;
 
 class OrderController {
     public function index(): void {
@@ -33,13 +34,13 @@ class OrderController {
         $layout        = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/index', [
-            'title'        => 'Order Directory - Launder',
+            'title'        => 'Orders Directory - Launder',
             'orders'       => $paginatedData['orders'],
             'totalOrders'  => $paginatedData['total_orders'],
-            'page'         => $paginatedData['page'],
+            'currentPage'  => $paginatedData['page'],
             'totalPages'   => $paginatedData['total_pages'],
-            'status'       => $status,
-            'search'       => $search,
+            'currentFilter'=> $status,
+            'searchTerm'   => $search,
             'pickupToday'  => $pickupToday,
             'deliveryToday'=> $deliveryToday,
             'paymentDue'   => $paymentDue
@@ -209,15 +210,26 @@ class OrderController {
             return;
         }
 
-        $history  = Order::getStatusHistory($id);
-        $payments = Payment::getByOrderId($id);
-        $layout   = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
+        $extracted = OrderMetadata::extract($order['special_instructions']);
+        $history   = Order::getStatusHistory($id);
+        $payments  = Payment::getByOrderId($id);
+        $items     = LaundryItem::all();
+        $workTypes = WorkType::all();
+        $pricings  = Pricing::all();
+        $settings  = Settings::get();
+        $layout    = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/show', [
-            'title'    => 'Order ' . $order['job_id'] . ' - Launder',
-            'order'    => $order,
-            'history'  => $history,
-            'payments' => $payments
+            'title'        => 'Order ' . $order['job_id'] . ' - Launder',
+            'order'        => $order,
+            'history'      => $history,
+            'payments'     => $payments,
+            'customerNote' => $extracted['customer_note'],
+            'metadata'     => $extracted['metadata'],
+            'items'        => $items,
+            'workTypes'    => $workTypes,
+            'pricings'     => $pricings,
+            'settings'     => $settings
         ], $layout);
     }
 
@@ -291,6 +303,64 @@ class OrderController {
         try {
             $res = Payment::create($_POST, $userId);
             $_SESSION['success'] = "Payment of ₹" . number_format((float)($_POST['amount'] ?? 0), 2) . " recorded successfully!";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
+    }
+
+    public function submitInspection(): void {
+        $userId   = (int)($_SESSION['user_id'] ?? 0);
+        $userRole = (string)($_SESSION['user_role'] ?? '');
+        $orderId  = (int)($_POST['order_id'] ?? 0);
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for inspection.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        try {
+            Order::submitInspection($orderId, $_POST, $userId, $userRole);
+            $_SESSION['success'] = "Inspection submitted and final price calculated successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
+    }
+
+    public function overridePriceApproval(): void {
+        $userRole = (string)($_SESSION['user_role'] ?? '');
+        $userId   = (int)($_SESSION['user_id'] ?? 0);
+
+        if ($userRole !== 'admin') {
+            $_SESSION['error'] = "Unauthorized: Only administrators may execute emergency price approval overrides.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        $reason  = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        try {
+            Order::overridePriceApprovalByAdmin($orderId, $userId, $reason);
+            $_SESSION['success'] = "Emergency price approval override executed successfully.";
         } catch (\Throwable $e) {
             $_SESSION['error'] = $e->getMessage();
         }
