@@ -269,12 +269,81 @@ $nextStatus = Order::getNextStatus($order['status']);
 
     <!-- Customer Instructions & Inspection Breakdown -->
     <div class="space-y-6">
+        <!-- Order Items Breakdown Card -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Order Items &amp; Service Breakdown</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">List of garments and requested cleaning services.</p>
+                </div>
+                <?php if (!empty($orderItems)): ?>
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">
+                        <?= count($orderItems) ?> <?= count($orderItems) === 1 ? 'Line Item' : 'Line Items' ?>
+                    </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($orderItems)): ?>
+                <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
+                            <tr>
+                                <th class="px-4 py-3 w-12 text-center">#</th>
+                                <th class="px-4 py-3">Item &amp; Service</th>
+                                <th class="px-4 py-3 text-right">Quantity</th>
+                                <th class="px-4 py-3 text-right">Unit Rate</th>
+                                <th class="px-4 py-3 text-right">Subtotal</th>
+                                <th class="px-4 py-3">Line Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            <?php 
+                            $calcSubtotal = 0.00;
+                            foreach ($orderItems as $item): 
+                                $calcSubtotal += (float)$item['subtotal'];
+                                $unitStr = ($item['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
+                            ?>
+                                <tr class="hover:bg-slate-50/50">
+                                    <td class="px-4 py-3 text-center text-slate-400 font-mono"><?= (int)$item['display_order'] ?></td>
+                                    <td class="px-4 py-3 font-semibold text-slate-800">
+                                        <?= htmlspecialchars($item['item_name']) ?>
+                                        <span class="ml-1 text-slate-500 font-normal">(<?= htmlspecialchars($item['work_type_name']) ?>)</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-medium text-slate-700">
+                                        <?= number_format((float)$item['quantity'], $item['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-mono text-slate-600">
+                                        ₹<?= number_format((float)$item['unit_price'], 2) ?>
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                                        ₹<?= number_format((float)$item['subtotal'], 2) ?>
+                                    </td>
+                                    <td class="px-4 py-3 text-slate-500 text-xs italic">
+                                        <?= !empty($item['item_notes']) ? htmlspecialchars($item['item_notes']) : '<span class="text-slate-300">—</span>' ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                        <tfoot class="bg-slate-50 font-semibold text-slate-700 border-t border-slate-200">
+                            <tr>
+                                <td colspan="4" class="px-4 py-2.5 text-right uppercase text-xs tracking-wider">Items Subtotal:</td>
+                                <td class="px-4 py-2.5 text-right font-mono font-bold text-slate-900">₹<?= number_format($calcSubtotal, 2) ?></td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            <?php else: ?>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 italic">
+                    Legacy Order: This order has no structured order items. Items were captured in the special instructions below or during workflow.
+                </div>
+            <?php endif; ?>
+        </div>
+
         <!-- Customer Note Card -->
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
-            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Order Details & Customer Special Instructions</h3>
-            <p class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap">
-                <?= !empty($customerNote) ? htmlspecialchars($customerNote) : '<em class="text-slate-400">No special instructions provided by customer.</em>' ?>
-            </p>
+            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Customer Special Instructions</h3>
+            <p class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap"><?= !empty($customerNote) ? htmlspecialchars($customerNote) : '<em class="text-slate-400">No special instructions provided by customer.</em>' ?></p>
         </div>
 
         <?php if (!empty($metadata['inspection'])): 
@@ -288,7 +357,7 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <div>
                         <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
                             <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            Verified Inspection & Pricing Details
+                            Verified Inspection &amp; Pricing Details
                         </h3>
                         <p class="text-xs text-slate-500 mt-0.5">
                             Inspected by <strong><?= htmlspecialchars($insp['inspected_by_name']) ?></strong> on <?= htmlspecialchars(date('M d, Y g:i A', strtotime($insp['inspected_at']))) ?>
@@ -305,24 +374,70 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <?php endif; ?>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Service</span>
-                        <span class="font-bold text-slate-800"><?= htmlspecialchars($insp['item_name']) ?> (<?= htmlspecialchars($insp['work_type_name']) ?>)</span>
+                <?php if (!empty($insp['items']) && is_array($insp['items'])): ?>
+                    <div class="overflow-x-auto border border-blue-100 rounded-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-blue-50 text-blue-800 font-semibold uppercase">
+                                <tr>
+                                    <th class="px-3 py-2">Item &amp; Service</th>
+                                    <th class="px-3 py-2 text-right">Verified Qty</th>
+                                    <th class="px-3 py-2 text-right">Unit Rate</th>
+                                    <th class="px-3 py-2 text-right">Subtotal</th>
+                                    <th class="px-3 py-2">Line Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-blue-50 bg-white">
+                                <?php foreach ($insp['items'] as $itLine): 
+                                    $unitStr = ($itLine['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
+                                ?>
+                                    <tr>
+                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                            <?= htmlspecialchars($itLine['item_name']) ?> <span class="text-slate-500">(<?= htmlspecialchars($itLine['work_type_name']) ?>)</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-slate-700">
+                                            <?= number_format((float)$itLine['quantity'], $itLine['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                            ₹<?= number_format((float)$itLine['unit_price'], 2) ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                            ₹<?= number_format((float)$itLine['subtotal'], 2) ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-500 italic">
+                                            <?= !empty($itLine['item_notes']) ? htmlspecialchars($itLine['item_notes']) : '—' ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Verified Quantity</span>
-                        <span class="font-bold text-slate-800"><?= number_format((float)$insp['quantity'], 2) ?> <?= htmlspecialchars($insp['unit_label']) ?></span>
+                    <div class="flex flex-col sm:flex-row justify-end items-end gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div>Items Subtotal: <strong>₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
+                        <span class="hidden sm:inline">&bull;</span>
+                        <div>Fees: <strong>₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
+                        <span class="hidden sm:inline">&bull;</span>
+                        <div class="text-sm font-bold text-blue-700">Final Inspected Total: ₹<?= number_format((float)$insp['calculated_total'], 2) ?></div>
                     </div>
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Unit Rate</span>
-                        <span class="font-bold text-slate-800">₹<?= number_format((float)$insp['unit_price'], 2) ?> / <?= htmlspecialchars($insp['unit_label']) ?></span>
+                <?php else: ?>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Service</span>
+                            <span class="font-bold text-slate-800"><?= htmlspecialchars($insp['item_name'] ?? '') ?> (<?= htmlspecialchars($insp['work_type_name'] ?? '') ?>)</span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Verified Quantity</span>
+                            <span class="font-bold text-slate-800"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Unit Rate</span>
+                            <span class="font-bold text-slate-800">₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?> / <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Calculated Total</span>
+                            <span class="font-mono font-bold text-blue-700 text-base">₹<?= number_format((float)($insp['calculated_total'] ?? 0), 2) ?></span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Calculated Total</span>
-                        <span class="font-mono font-bold text-blue-700 text-base">₹<?= number_format((float)$insp['calculated_total'], 2) ?></span>
-                    </div>
-                </div>
+                <?php endif; ?>
 
                 <?php if (!empty($insp['garment_notes'])): ?>
                     <div class="text-xs bg-amber-50/70 border border-amber-200 p-3 rounded-xl text-amber-900">
@@ -385,78 +500,62 @@ $nextStatus = Order::getNextStatus($order['status']);
         </div>
     </div>
 
-    <!-- Inspection Modal -->
+    <!-- Inspection Modal (Multi-Item Supported) -->
     <div id="inspectModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 hidden">
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-lg w-full overflow-hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <div>
-                    <h3 class="text-lg font-bold text-slate-900">Garment Inspection & Final Pricing</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">Weigh and verify garments to calculate final order total.</p>
+                    <h3 class="text-lg font-bold text-slate-900">Garment Inspection &amp; Final Pricing</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Weigh and verify garments per service line to calculate final order total.</p>
                 </div>
-                <button type="button" onclick="document.getElementById('inspectModal').classList.add('hidden');" class="text-slate-400 hover:text-slate-600 text-xl font-bold p-1">&times;</button>
+                <button type="button" onclick="document.getElementById('inspectModal').classList.add('hidden');" class="text-slate-400 hover:text-slate-600 text-2xl font-bold p-1">&times;</button>
             </div>
 
-            <form action="/laundry-lms/orders/inspect" method="POST" class="p-6 space-y-4">
+            <form action="/laundry-lms/orders/inspect" method="POST" id="inspectForm" class="p-6 space-y-5 overflow-y-auto flex-1">
                 <?= Csrf::field() ?>
                 <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
                 <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
 
+                <!-- Inspection Lines Repeater -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Laundry Item</label>
-                    <select name="item_id" id="modalItemId" required onchange="calculateModalTotal()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select an Item</option>
-                        <?php foreach ($items as $it): 
-                            $sel = (!empty($metadata['inspection']['item_id']) && (int)$metadata['inspection']['item_id'] === (int)$it['id']) ? 'selected' : '';
-                        ?>
-                            <option value="<?= (int)$it['id'] ?>" <?= $sel ?>><?= htmlspecialchars($it['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Inspected Order Lines</label>
+                        <button type="button" onclick="addInspectionRow()" class="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            Add Service Line
+                        </button>
+                    </div>
+
+                    <div id="inspectionRowsContainer" class="space-y-3">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                    <div id="modalDupWarning" class="hidden mt-2 p-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium"></div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Work / Service Type</label>
-                    <select name="work_type_id" id="modalWorkTypeId" required onchange="calculateModalTotal()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Select a Work Type</option>
-                        <?php foreach ($workTypes as $wt): 
-                            $sel = (!empty($metadata['inspection']['work_type_id']) && (int)$metadata['inspection']['work_type_id'] === (int)$wt['id']) ? 'selected' : '';
-                        ?>
-                            <option value="<?= (int)$wt['id'] ?>" <?= $sel ?>><?= htmlspecialchars($wt['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1" id="qtyLabel">Verified Quantity / Weight</label>
-                    <input type="number" name="quantity" id="modalQuantity" step="0.01" min="0.01" required value="<?= htmlspecialchars((string)($metadata['inspection']['quantity'] ?? '1.00')) ?>" oninput="calculateModalTotal()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Garment Condition & Defect Notes</label>
-                    <textarea name="garment_notes" rows="2" placeholder="e.g. Minor stain on collar, fragile buttons, color bleed warning" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"><?= htmlspecialchars($metadata['inspection']['garment_notes'] ?? '') ?></textarea>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Reason for Price Adjustment</label>
-                    <input type="text" name="adjustment_reason" placeholder="e.g. Measured 4.8kg vs customer estimated 3.0kg" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Garment Condition &amp; Defect Notes</label>
+                        <textarea name="garment_notes" rows="2" placeholder="e.g. Minor stain on collar, fragile buttons, color bleed warning" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"><?= htmlspecialchars($metadata['inspection']['garment_notes'] ?? '') ?></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Reason for Price Adjustment</label>
+                        <textarea name="adjustment_reason" rows="2" placeholder="e.g. Measured weight verified against estimate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
                 </div>
 
                 <!-- Live Price Preview Box -->
                 <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-4 space-y-1.5 text-xs text-slate-700">
                     <div class="flex justify-between">
-                        <span>Unit Rate:</span>
-                        <span class="font-semibold" id="previewRate">₹0.00</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Item Subtotal:</span>
-                        <span class="font-semibold" id="previewSubtotal">₹0.00</span>
+                        <span>Items Subtotal:</span>
+                        <span class="font-semibold font-mono" id="modalPreviewSubtotal">₹0.00</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Pickup/Delivery Fee:</span>
-                        <span class="font-semibold" id="previewFees">₹0.00</span>
+                        <span class="font-semibold font-mono" id="modalPreviewFees">₹0.00</span>
                     </div>
                     <div class="flex justify-between border-t border-blue-200 pt-1.5 text-sm font-bold text-slate-900">
-                        <span>Final Total:</span>
-                        <span class="font-mono text-blue-700 text-base" id="previewTotal">₹0.00</span>
+                        <span>Final Inspected Total:</span>
+                        <span class="font-mono text-blue-700 text-base" id="modalPreviewTotal">₹0.00</span>
                     </div>
                 </div>
 
@@ -464,8 +563,8 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <button type="button" onclick="document.getElementById('inspectModal').classList.add('hidden');" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-colors">
                         Cancel
                     </button>
-                    <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
-                        Submit Inspection & Calculate Price
+                    <button type="submit" id="modalSubmitBtn" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
+                        Submit Inspection &amp; Calculate Price
                     </button>
                 </div>
             </form>
@@ -512,41 +611,178 @@ $nextStatus = Order::getNextStatus($order['status']);
     <?php endif; ?>
 
     <script>
-    const pricingsCatalog = <?= json_encode($pricings ?? []) ?>;
-    const businessSettings = <?= json_encode($settings ?? []) ?>;
+    const pricingsCatalog = <?= json_encode($pricings ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const businessSettings = <?= json_encode($settings ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const initialOrderItems = <?= json_encode(!empty($orderItems) ? array_values($orderItems) : [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const initialInspectionItems = <?= json_encode(!empty($metadata['inspection']['items']) ? array_values($metadata['inspection']['items']) : [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const itemsCatalog = <?= json_encode($items ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const workTypesCatalog = <?= json_encode($workTypes ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
 
-    function calculateModalTotal() {
-        const itemId = parseInt(document.getElementById('modalItemId').value) || 0;
-        const workTypeId = parseInt(document.getElementById('modalWorkTypeId').value) || 0;
-        const qty = parseFloat(document.getElementById('modalQuantity').value) || 0;
+    let inspectionRowIndex = 0;
 
-        const p = pricingsCatalog.find(x => parseInt(x.item_id) === itemId && parseInt(x.work_type_id) === workTypeId);
-        if (!p || qty <= 0) {
-            document.getElementById('previewRate').textContent = '₹0.00';
-            document.getElementById('previewSubtotal').textContent = '₹0.00';
-            document.getElementById('previewFees').textContent = '₹0.00';
-            document.getElementById('previewTotal').textContent = '₹0.00';
+    function createRowHtml(index, itemVal = '', workTypeVal = '', qtyVal = '1.00', noteVal = '') {
+        let itemOpts = '<option value="">Select Item</option>';
+        itemsCatalog.forEach(it => {
+            const sel = (it.id == itemVal) ? 'selected' : '';
+            itemOpts += `<option value="${it.id}" ${sel}>${it.name}</option>`;
+        });
+
+        let wtOpts = '<option value="">Select Work Type</option>';
+        workTypesCatalog.forEach(wt => {
+            const sel = (wt.id == workTypeVal) ? 'selected' : '';
+            wtOpts += `<option value="${wt.id}" ${sel}>${wt.name}</option>`;
+        });
+
+        return `
+            <div class="inspection-row bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2 relative" data-row="${index}">
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Item</label>
+                        <select name="lines[${index}][item_id]" class="row-item w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500" required onchange="calculateModalTotals()">
+                            ${itemOpts}
+                        </select>
+                    </div>
+                    <div class="sm:col-span-4">
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1">Work Type</label>
+                        <select name="lines[${index}][work_type_id]" class="row-worktype w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-blue-500" required onchange="calculateModalTotals()">
+                            ${wtOpts}
+                        </select>
+                    </div>
+                    <div class="sm:col-span-3">
+                        <label class="block text-[11px] font-medium text-slate-500 mb-1 row-qty-label">Verified Qty</label>
+                        <input type="number" step="0.01" min="0.01" max="1000" name="lines[${index}][quantity]" value="${qtyVal}" class="row-qty w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:ring-2 focus:ring-blue-500" required oninput="calculateModalTotals()">
+                    </div>
+                    <div class="sm:col-span-1 flex justify-end pt-4 sm:pt-0">
+                        <button type="button" onclick="removeInspectionRow(${index})" class="text-rose-500 hover:text-rose-700 p-1 rounded hover:bg-rose-50" title="Remove line">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center pt-1 border-t border-slate-200/60">
+                    <div class="sm:col-span-8">
+                        <input type="text" name="lines[${index}][item_notes]" value="${noteVal.replace(/"/g, '&quot;')}" placeholder="Condition notes for this item (optional)" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-700 focus:ring-1 focus:ring-blue-500">
+                    </div>
+                    <div class="sm:col-span-4 text-right">
+                        <span class="text-xs text-slate-400">Rate: <span class="font-mono text-slate-600 row-rate">₹0.00</span> | Subtotal: <strong class="font-mono text-slate-900 row-subtotal">₹0.00</strong></span>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function addInspectionRow(itemVal = '', workTypeVal = '', qtyVal = '1.00', noteVal = '') {
+        const container = document.getElementById('inspectionRowsContainer');
+        const div = document.createElement('div');
+        div.innerHTML = createRowHtml(inspectionRowIndex, itemVal, workTypeVal, qtyVal, noteVal);
+        container.appendChild(div.firstElementChild);
+        inspectionRowIndex++;
+        calculateModalTotals();
+    }
+
+    function removeInspectionRow(index) {
+        const rows = document.querySelectorAll('.inspection-row');
+        if (rows.length <= 1) {
+            alert('At least one item service line is required.');
             return;
         }
+        const target = document.querySelector(`.inspection-row[data-row="${index}"]`);
+        if (target) {
+            target.remove();
+            calculateModalTotals();
+        }
+    }
 
-        const rate = parseFloat(p.price);
-        const subtotal = Math.round(rate * qty * 100) / 100;
+    function calculateModalTotals() {
+        const rows = document.querySelectorAll('.inspection-row');
+        let subtotal = 0.00;
+        let hasDuplicate = false;
+        const seenPairs = new Set();
+
+        rows.forEach(row => {
+            const itemSelect = row.querySelector('.row-item');
+            const wtSelect = row.querySelector('.row-worktype');
+            const qtyInput = row.querySelector('.row-qty');
+            const rateSpan = row.querySelector('.row-rate');
+            const subtotalSpan = row.querySelector('.row-subtotal');
+            const qtyLabel = row.querySelector('.row-qty-label');
+
+            const itemId = parseInt(itemSelect.value) || 0;
+            const wtId = parseInt(wtSelect.value) || 0;
+            const rawQty = parseFloat(qtyInput.value) || 0;
+
+            if (itemId > 0 && wtId > 0) {
+                const pairKey = `${itemId}_${wtId}`;
+                if (seenPairs.has(pairKey)) {
+                    hasDuplicate = true;
+                }
+                seenPairs.add(pairKey);
+            }
+
+            const p = pricingsCatalog.find(x => parseInt(x.item_id) === itemId && parseInt(x.work_type_id) === wtId);
+            if (p) {
+                const rate = parseFloat(p.price) || 0;
+                if (p.pricing_type === 'per_item') {
+                    qtyLabel.textContent = 'Quantity (items)';
+                    qtyInput.step = '1';
+                } else {
+                    qtyLabel.textContent = 'Weight (kg)';
+                    qtyInput.step = '0.01';
+                }
+
+                const lineSubtotal = Math.round(rate * rawQty * 100) / 100;
+                subtotal += lineSubtotal;
+
+                rateSpan.textContent = '₹' + rate.toFixed(2) + (p.pricing_type === 'per_kg' ? '/kg' : '/item');
+                subtotalSpan.textContent = '₹' + lineSubtotal.toFixed(2);
+            } else {
+                rateSpan.textContent = '₹0.00';
+                subtotalSpan.textContent = '₹0.00';
+            }
+        });
+
+        const warnEl = document.getElementById('modalDupWarning');
+        const submitBtn = document.getElementById('modalSubmitBtn');
+        if (hasDuplicate) {
+            warnEl.textContent = 'Duplicate item and work type combinations are not allowed.';
+            warnEl.classList.remove('hidden');
+            submitBtn.disabled = true;
+            submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            warnEl.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
         const freeLimit = parseFloat(businessSettings.free_pickup_limit || 0);
         const pickupCharge = parseFloat(businessSettings.pickup_charge || 0);
         const deliveryCharge = parseFloat(businessSettings.delivery_charge || 0);
 
         let fees = 0.00;
-        if (freeLimit <= 0 || subtotal < freeLimit) {
+        if (subtotal > 0 && (freeLimit <= 0 || subtotal < freeLimit)) {
             fees = pickupCharge + deliveryCharge;
         }
         const total = Math.round((subtotal + fees) * 100) / 100;
 
-        const unitSuffix = p.pricing_type === 'per_kg' ? '/kg' : '/item';
-        document.getElementById('previewRate').textContent = '₹' + rate.toFixed(2) + ' ' + unitSuffix;
-        document.getElementById('previewSubtotal').textContent = '₹' + subtotal.toFixed(2);
-        document.getElementById('previewFees').textContent = '₹' + fees.toFixed(2);
-        document.getElementById('previewTotal').textContent = '₹' + total.toFixed(2);
+        document.getElementById('modalPreviewSubtotal').textContent = '₹' + subtotal.toFixed(2);
+        document.getElementById('modalPreviewFees').textContent = '₹' + fees.toFixed(2);
+        document.getElementById('modalPreviewTotal').textContent = '₹' + total.toFixed(2);
     }
-    calculateModalTotal();
+
+    // Initialize inspection modal rows
+    document.addEventListener('DOMContentLoaded', () => {
+        const sourceLines = (initialInspectionItems.length > 0) 
+            ? initialInspectionItems 
+            : (initialOrderItems.length > 0 ? initialOrderItems : []);
+
+        if (sourceLines.length > 0) {
+            sourceLines.forEach(line => {
+                addInspectionRow(line.item_id, line.work_type_id, line.quantity, line.item_notes || '');
+            });
+        } else {
+            // Add one default blank row
+            addInspectionRow();
+        }
+    });
     </script>
 </div>
+

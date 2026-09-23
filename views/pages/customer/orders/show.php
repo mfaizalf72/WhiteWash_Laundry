@@ -43,24 +43,68 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                 $prevTotal = $latestRev['previous_total'] ?? $order['total_amount'];
             ?>
             <div class="bg-white rounded-xl border border-amber-200 p-4 space-y-3">
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                    <div>
-                        <span class="text-slate-400 block font-medium">Initial Estimate</span>
-                        <span class="font-bold text-slate-700 text-sm">₹<?= number_format((float)$prevTotal, 2) ?></span>
+                <?php if (!empty($insp['items']) && is_array($insp['items'])): ?>
+                    <div class="overflow-x-auto border border-amber-200/70 rounded-xl">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-amber-50 text-amber-900 font-semibold uppercase">
+                                <tr>
+                                    <th class="px-3 py-2">Item &amp; Service</th>
+                                    <th class="px-3 py-2 text-right">Verified Qty</th>
+                                    <th class="px-3 py-2 text-right">Unit Rate</th>
+                                    <th class="px-3 py-2 text-right">Subtotal</th>
+                                    <th class="px-3 py-2">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-amber-100 bg-white">
+                                <?php foreach ($insp['items'] as $itLine): 
+                                    $unitStr = ($itLine['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
+                                ?>
+                                    <tr>
+                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                            <?= htmlspecialchars($itLine['item_name']) ?> <span class="text-slate-500">(<?= htmlspecialchars($itLine['work_type_name']) ?>)</span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-slate-700">
+                                            <?= number_format((float)$itLine['quantity'], $itLine['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                            ₹<?= number_format((float)$itLine['unit_price'], 2) ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                            ₹<?= number_format((float)$itLine['subtotal'], 2) ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-slate-500 italic">
+                                            <?= !empty($itLine['item_notes']) ? htmlspecialchars($itLine['item_notes']) : '—' ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block font-medium">Verified Service</span>
-                        <span class="font-bold text-slate-800 text-sm"><?= htmlspecialchars($insp['item_name']) ?> (<?= htmlspecialchars($insp['work_type_name']) ?>)</span>
+                    <div class="flex flex-col sm:flex-row justify-end items-end gap-3 text-xs text-slate-600 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
+                        <div>Items Subtotal: <strong>₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
+                        <span class="hidden sm:inline">&bull;</span>
+                        <div>Pickup/Delivery Fee: <strong>₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block font-medium">Measured Quantity</span>
-                        <span class="font-bold text-slate-800 text-sm"><?= number_format((float)$insp['quantity'], 2) ?> <?= htmlspecialchars($insp['unit_label']) ?> @ ₹<?= number_format((float)$insp['unit_price'], 2) ?>/<?= htmlspecialchars($insp['unit_label']) ?></span>
+                <?php else: ?>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                        <div>
+                            <span class="text-slate-400 block font-medium">Initial Estimate</span>
+                            <span class="font-bold text-slate-700 text-sm">₹<?= number_format((float)$prevTotal, 2) ?></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-medium">Verified Service</span>
+                            <span class="font-bold text-slate-800 text-sm"><?= htmlspecialchars($insp['item_name'] ?? '') ?> (<?= htmlspecialchars($insp['work_type_name'] ?? '') ?>)</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-medium">Measured Quantity</span>
+                            <span class="font-bold text-slate-800 text-sm"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?> @ ₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?>/<?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-medium">Delivery Fees</span>
+                            <span class="font-bold text-slate-800 text-sm">₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></span>
+                        </div>
                     </div>
-                    <div>
-                        <span class="text-slate-400 block font-medium">Delivery Fees</span>
-                        <span class="font-bold text-slate-800 text-sm">₹<?= number_format((float)$insp['pickup_fee'] + (float)$insp['delivery_fee'], 2) ?></span>
-                    </div>
-                </div>
+                <?php endif; ?>
 
                 <?php if (!empty($insp['garment_notes'])): ?>
                     <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-slate-700">
@@ -107,7 +151,7 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
             
             <!-- Dates & Address Card -->
             <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Schedule & Delivery</h3>
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Schedule &amp; Delivery</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     <div>
                         <span class="text-xs text-slate-400 block font-medium">Scheduled Pickup Date</span>
@@ -119,16 +163,78 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                     </div>
                     <?php if (!empty($order['customer_address'])): ?>
                     <div class="sm:col-span-2">
-                        <span class="text-xs text-slate-400 block font-medium">Pickup & Delivery Address</span>
+                        <span class="text-xs text-slate-400 block font-medium">Pickup &amp; Delivery Address</span>
                         <span class="text-slate-700"><?= Security::e($order['customer_address']) ?></span>
                     </div>
                     <?php endif; ?>
                 </div>
             </div>
 
-            <!-- Service Breakdown & Instructions -->
+            <!-- Order Items Breakdown Card -->
             <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Order Details & Instructions</h3>
+                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Order Items &amp; Services</h3>
+                    <?php if (!empty($orderItems)): ?>
+                        <span class="text-xs text-slate-500 font-medium"><?= count($orderItems) ?> item(s)</span>
+                    <?php endif; ?>
+                </div>
+
+                <?php if (!empty($orderItems)): ?>
+                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                        <table class="w-full text-left text-xs">
+                            <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b border-slate-200">
+                                <tr>
+                                    <th class="px-3 py-2">Item &amp; Service</th>
+                                    <th class="px-3 py-2 text-right">Quantity</th>
+                                    <th class="px-3 py-2 text-right">Rate</th>
+                                    <th class="px-3 py-2 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <?php 
+                                $cSubtotal = 0.00;
+                                foreach ($orderItems as $item): 
+                                    $cSubtotal += (float)$item['subtotal'];
+                                    $unitStr = ($item['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
+                                ?>
+                                    <tr>
+                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                            <?= htmlspecialchars($item['item_name']) ?>
+                                            <span class="text-slate-500 text-[11px] block sm:inline">(<?= htmlspecialchars($item['work_type_name']) ?>)</span>
+                                            <?php if (!empty($item['item_notes'])): ?>
+                                                <span class="text-slate-400 text-[11px] block italic"><?= htmlspecialchars($item['item_notes']) ?></span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-slate-700">
+                                            <?= number_format((float)$item['quantity'], $item['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                            ₹<?= number_format((float)$item['unit_price'], 2) ?>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                            ₹<?= number_format((float)$item['subtotal'], 2) ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                            <tfoot class="bg-slate-50 font-semibold text-slate-700 border-t border-slate-200">
+                                <tr>
+                                    <td colspan="3" class="px-3 py-2 text-right uppercase text-[11px]">Items Subtotal:</td>
+                                    <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">₹<?= number_format($cSubtotal, 2) ?></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                <?php else: ?>
+                    <p class="text-xs text-slate-500 italic bg-slate-50 p-3 rounded-lg border border-slate-200">
+                        Legacy order: Service details were recorded in the instructions note below.
+                    </p>
+                <?php endif; ?>
+            </div>
+
+            <!-- Customer Special Instructions -->
+            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Special Instructions</h3>
                 <div class="bg-slate-50 p-4 rounded-lg text-sm font-mono text-slate-800 whitespace-pre-line border border-slate-200">
                     <?= !empty($customerNote) ? Security::e($customerNote) : '<em class="text-slate-400 font-sans">No special instructions provided.</em>' ?>
                 </div>

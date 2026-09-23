@@ -79,6 +79,11 @@ class Order {
 
             $orderId = (int)$db->lastInsertId();
 
+            // Insert line items if provided
+            if (!empty($orderData['items']) && is_array($orderData['items'])) {
+                OrderItem::insertLines($orderId, $orderData['items'], $db);
+            }
+
             // Insert initial entry in order_status_history
             $histSql = "INSERT INTO order_status_history (order_id, old_status, new_status, updated_by)
                         VALUES (:order_id, NULL, :new_status, :updated_by)";
@@ -95,6 +100,10 @@ class Order {
             $db->rollBack();
             throw $e;
         }
+    }
+
+    public static function getItems(int $orderId): array {
+        return OrderItem::getByOrderId($orderId);
     }
 
     public static function all(array $filters = []): array {
@@ -278,43 +287,164 @@ class Order {
                 throw new \DomainException("Inspection can only be performed when order is in 'picked_up' or 'inspection_completed' status (current: '{$currentStatus}').");
             }
 
-            $itemId           = (int)($data['item_id'] ?? 0);
-            $workTypeId       = (int)($data['work_type_id'] ?? 0);
-            $rawQty           = $data['quantity'] ?? null;
+            // Capture pre-replacement snapshot of existing active order_items
+            $oldLines = OrderItem::getByOrderId($orderId);
+
             $garmentNotes     = trim((string)($data['garment_notes'] ?? ''));
             $adjustmentReason = trim((string)($data['adjustment_reason'] ?? ''));
 
-            if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
-                $db->rollBack();
-                throw new \InvalidArgumentException("Quantity or weight must be a valid number greater than zero.");
-            }
-            $quantity = round((float)$rawQty, 2);
+            $rawLinesInput = (!empty($data['items']) && is_array($data['items'])) 
+                ? $data['items'] 
+                : ((!empty($data['lines']) && is_array($data['lines'])) ? $data['lines'] : null);
+            $isMultiItem = ($rawLinesInput !== null);
+            $validatedLines = [];
+            $itemsSubtotal = 0.00;
 
-            // Verify active item
-            $itemObj = LaundryItem::find($itemId);
-            if (!$itemObj) {
-                $db->rollBack();
-                throw new \InvalidArgumentException("Selected laundry item is invalid or not found.");
+            if ($isMultiItem) {
+                if (count($rawLinesInput) === 0) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Inspection items list cannot be empty.");
+                }
+
+                $seenKeys = [];
+                $displayOrder = 1;
+
+                foreach ($rawLinesInput as $rawLine) {
+                    $itemId     = (int)($rawLine['item_id'] ?? 0);
+                    $workTypeId = (int)($rawLine['work_type_id'] ?? 0);
+                    $rawQty     = $rawLine['quantity'] ?? null;
+
+                    // Duplicate item and work type check
+                    $pairKey = "{$itemId}_{$workTypeId}";
+                    if (isset($seenKeys[$pairKey])) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Duplicate item and work type combination detected for item #{$itemId} and work type #{$workTypeId}. Each item and service treatment must be unique per order.");
+                    }
+                    $seenKeys[$pairKey] = true;
+
+                    // Verify active item
+                    $itemObj = LaundryItem::find($itemId);
+                    if (!$itemObj) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Selected laundry item #{$itemId} is invalid or soft-deleted.");
+                    }
+
+                    // Verify active work type
+                    $workTypeObj = WorkType::find($workTypeId);
+                    if (!$workTypeObj) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Selected work type #{$workTypeId} is invalid or soft-deleted.");
+                    }
+
+                    // Verify pricing
+                    $pricing = Pricing::find($itemId, $workTypeId);
+                    if (!$pricing) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("No valid pricing configuration exists for '{$itemObj['name']}' and '{$workTypeObj['name']}'.");
+                    }
+
+                    // Validate quantity
+                    if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Quantity or weight must be a valid positive number.");
+                    }
+                    if ((float)$rawQty > 1000) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Quantity or weight cannot exceed 1,000.");
+                    }
+
+                    $pricingType = $pricing['pricing_type'];
+                    if ($pricingType === 'per_item') {
+                        if (floor((float)$rawQty) != (float)$rawQty) {
+                            $db->rollBack();
+                            throw new \InvalidArgumentException("Quantity for per-item service ('{$itemObj['name']}') must be a whole positive integer.");
+                        }
+                        $quantity = (float)floor((float)$rawQty);
+                    } else {
+                        $quantity = round((float)$rawQty, 2);
+                    }
+
+                    $unitPrice = (float)$pricing['price'];
+                    $lineSubtotal = round($unitPrice * $quantity, 2);
+                    $itemsSubtotal += $lineSubtotal;
+
+                    $lineNote = !empty($rawLine['item_notes']) ? trim((string)$rawLine['item_notes']) : (!empty($rawLine['notes']) ? trim((string)$rawLine['notes']) : null);
+
+                    $validatedLines[] = [
+                        'item_id'        => $itemId,
+                        'item_name'      => $itemObj['name'],
+                        'work_type_id'   => $workTypeId,
+                        'work_type_name' => $workTypeObj['name'],
+                        'quantity'       => $quantity,
+                        'unit_price'     => $unitPrice,
+                        'pricing_type'   => $pricingType,
+                        'subtotal'       => $lineSubtotal,
+                        'item_notes'     => $lineNote,
+                        'display_order'  => $displayOrder++
+                    ];
+                }
+            } else {
+                // Single-item fallback (Phase 10B legacy parameters)
+                $itemId     = (int)($data['item_id'] ?? 0);
+                $workTypeId = (int)($data['work_type_id'] ?? 0);
+                $rawQty     = $data['quantity'] ?? null;
+
+                if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Quantity or weight must be a valid number greater than zero.");
+                }
+                if ((float)$rawQty > 1000) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Quantity or weight cannot exceed 1,000.");
+                }
+
+                $itemObj = LaundryItem::find($itemId);
+                if (!$itemObj) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Selected laundry item is invalid or not found.");
+                }
+
+                $workTypeObj = WorkType::find($workTypeId);
+                if (!$workTypeObj) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Selected work type is invalid or not found.");
+                }
+
+                $pricing = Pricing::find($itemId, $workTypeId);
+                if (!$pricing) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("No valid pricing configuration exists for the selected item and work type.");
+                }
+
+                $pricingType = $pricing['pricing_type'];
+                if ($pricingType === 'per_item') {
+                    if (floor((float)$rawQty) != (float)$rawQty) {
+                        $db->rollBack();
+                        throw new \InvalidArgumentException("Quantity for per-item service must be a whole positive integer.");
+                    }
+                    $quantity = (float)floor((float)$rawQty);
+                } else {
+                    $quantity = round((float)$rawQty, 2);
+                }
+
+                $unitPrice = (float)$pricing['price'];
+                $itemsSubtotal = round($unitPrice * $quantity, 2);
+
+                $validatedLines[] = [
+                    'item_id'        => $itemId,
+                    'item_name'      => $itemObj['name'],
+                    'work_type_id'   => $workTypeId,
+                    'work_type_name' => $workTypeObj['name'],
+                    'quantity'       => $quantity,
+                    'unit_price'     => $unitPrice,
+                    'pricing_type'   => $pricingType,
+                    'subtotal'       => $itemsSubtotal,
+                    'item_notes'     => !empty($garmentNotes) ? $garmentNotes : null,
+                    'display_order'  => 1
+                ];
             }
 
-            // Verify active work type
-            $workTypeObj = WorkType::find($workTypeId);
-            if (!$workTypeObj) {
-                $db->rollBack();
-                throw new \InvalidArgumentException("Selected work type is invalid or not found.");
-            }
-
-            // Verify pricing
-            $pricing = Pricing::find($itemId, $workTypeId);
-            if (!$pricing) {
-                $db->rollBack();
-                throw new \InvalidArgumentException("No valid pricing configuration exists for the selected item and work type.");
-            }
-
-            $unitPrice   = (float)$pricing['price'];
-            $pricingType = $pricing['pricing_type'];
-            $unitLabel   = ($pricingType === 'per_kg') ? 'kg' : 'item(s)';
-            $itemSubtotal = round($unitPrice * $quantity, 2);
+            $itemsSubtotal = round($itemsSubtotal, 2);
 
             // Business settings fee logic
             $settings = Settings::get();
@@ -323,11 +453,11 @@ class Order {
             $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
 
             $addedCharges = 0.00;
-            if ($freePickupLimit <= 0 || $itemSubtotal < $freePickupLimit) {
+            if ($freePickupLimit <= 0 || $itemsSubtotal < $freePickupLimit) {
                 $addedCharges = $pickupCharge + $deliveryCharge;
             }
 
-            $newTotal = round($itemSubtotal + $addedCharges, 2);
+            $newTotal = round($itemsSubtotal + $addedCharges, 2);
 
             // Strict Price Reduction Rule: new_total < amount_paid is REJECTED
             $amountPaid = round((float)$order['amount_paid'], 2);
@@ -359,24 +489,32 @@ class Order {
             $customerNote = $extracted['customer_note'];
             $meta = $extracted['metadata'];
 
+            // Build inspection payload
             $inspectionPayload = [
                 'inspected_by'      => $userId,
                 'inspected_by_name' => (string)$inspectorName,
                 'inspected_at'      => date('Y-m-d H:i:s'),
-                'item_id'           => $itemId,
-                'item_name'         => $itemObj['name'],
-                'work_type_id'      => $workTypeId,
-                'work_type_name'    => $workTypeObj['name'],
-                'quantity'          => $quantity,
-                'unit_label'        => $unitLabel,
-                'unit_price'        => $unitPrice,
-                'item_subtotal'     => $itemSubtotal,
+                'items'             => $validatedLines,
+                'items_subtotal'    => $itemsSubtotal,
                 'pickup_fee'        => ($addedCharges > 0) ? $pickupCharge : 0.00,
                 'delivery_fee'      => ($addedCharges > 0) ? $deliveryCharge : 0.00,
                 'free_pickup_limit' => $freePickupLimit,
                 'calculated_total'  => $newTotal,
                 'garment_notes'     => $garmentNotes
             ];
+
+            // If single-item, also include top-level fields for backwards compatibility
+            if (!$isMultiItem && count($validatedLines) === 1) {
+                $first = $validatedLines[0];
+                $inspectionPayload['item_id'] = $first['item_id'];
+                $inspectionPayload['item_name'] = $first['item_name'];
+                $inspectionPayload['work_type_id'] = $first['work_type_id'];
+                $inspectionPayload['work_type_name'] = $first['work_type_name'];
+                $inspectionPayload['quantity'] = $first['quantity'];
+                $inspectionPayload['unit_label'] = ($first['pricing_type'] === 'per_kg') ? 'kg' : 'item(s)';
+                $inspectionPayload['unit_price'] = $first['unit_price'];
+                $inspectionPayload['item_subtotal'] = $first['subtotal'];
+            }
 
             $revisionHash = OrderMetadata::generateRevisionHash($inspectionPayload);
 
@@ -387,9 +525,9 @@ class Order {
                 'revised_at'     => date('Y-m-d H:i:s'),
                 'previous_total' => $prevTotal,
                 'new_total'      => $newTotal,
-                'quantity'       => $quantity,
-                'unit_label'     => $unitLabel,
-                'unit_price'     => $unitPrice,
+                'previous_lines' => $oldLines,
+                'new_lines'      => $validatedLines,
+                'lines_count'    => count($validatedLines),
                 'reason'         => !empty($adjustmentReason) ? $adjustmentReason : ($currentStatus === 'picked_up' ? 'Initial inspection completed' : 'Inspection revised'),
                 'revision_id'    => $revisionHash
             ];
@@ -411,6 +549,9 @@ class Order {
             }
 
             $newInstructions = OrderMetadata::compose($customerNote, $meta);
+
+            // Replace active lines in order_items (within transaction)
+            OrderItem::replaceForOrder($orderId, $validatedLines, $db);
 
             // Update order record
             $upd = $db->prepare("UPDATE orders SET 

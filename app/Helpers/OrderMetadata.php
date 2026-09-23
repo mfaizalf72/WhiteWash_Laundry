@@ -93,6 +93,33 @@ class OrderMetadata {
      * @return string
      */
     public static function generateRevisionHash(array $inspectionData): string {
+        if (!empty($inspectionData['items']) && is_array($inspectionData['items'])) {
+            $canonicalItems = [];
+            foreach ($inspectionData['items'] as $item) {
+                $canonicalItems[] = [
+                    'item_id'       => (int)($item['item_id'] ?? 0),
+                    'work_type_id'  => (int)($item['work_type_id'] ?? 0),
+                    'quantity'      => round((float)($item['quantity'] ?? 0), 2),
+                    'unit_price'    => round((float)($item['unit_price'] ?? 0), 2),
+                    'pricing_type'  => (string)($item['pricing_type'] ?? 'per_item'),
+                    'subtotal'      => round((float)($item['subtotal'] ?? 0), 2),
+                    'item_notes'    => trim((string)($item['item_notes'] ?? ''))
+                ];
+            }
+            usort($canonicalItems, fn($a, $b) => ($a['item_id'] <=> $b['item_id']) ?: ($a['work_type_id'] <=> $b['work_type_id']));
+
+            $canonical = [
+                'items'            => $canonicalItems,
+                'items_subtotal'   => round((float)($inspectionData['items_subtotal'] ?? 0), 2),
+                'calculated_total' => round((float)($inspectionData['calculated_total'] ?? 0), 2),
+                'pickup_fee'       => round((float)($inspectionData['pickup_fee'] ?? 0), 2),
+                'delivery_fee'     => round((float)($inspectionData['delivery_fee'] ?? 0), 2),
+                'garment_notes'    => trim((string)($inspectionData['garment_notes'] ?? ''))
+            ];
+            ksort($canonical);
+            return hash('sha256', json_encode($canonical, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        }
+
         $canonical = [
             'item_id'          => (int)($inspectionData['item_id'] ?? 0),
             'work_type_id'     => (int)($inspectionData['work_type_id'] ?? 0),
