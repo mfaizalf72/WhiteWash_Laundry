@@ -16,7 +16,7 @@ $nextStatus = Order::getNextStatus($order['status']);
             </a>
             <div class="flex items-center gap-3">
                 <h2 class="text-2xl font-bold font-mono text-slate-900"><?= htmlspecialchars($order['job_id']) ?></h2>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider <?= $order['status'] === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200' ?>">
                     <?= str_replace('_', ' ', htmlspecialchars($order['status'])) ?>
                 </span>
             </div>
@@ -31,17 +31,53 @@ $nextStatus = Order::getNextStatus($order['status']);
         </div>
     </div>
 
+    <?php if ($order['status'] === 'cancelled'): 
+        $canc = $metadata['cancellation'] ?? [];
+        $rej  = $metadata['rejection'] ?? [];
+    ?>
+        <!-- Order Cancelled Banner -->
+        <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 shadow-sm space-y-3">
+            <div class="flex items-start gap-3">
+                <div class="p-2 bg-rose-100 rounded-xl text-rose-700">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-base font-bold text-rose-900">Order Cancelled</h3>
+                    <p class="text-xs text-rose-700 mt-0.5">This order is cancelled and permanently terminal. No further transitions, inspections, or payments can be recorded.</p>
+                    <div class="mt-3 bg-white p-3 rounded-xl border border-rose-200 text-xs space-y-1 text-slate-700">
+                        <div><strong class="text-slate-900">Cancellation Reason:</strong> <?= htmlspecialchars($canc['reason'] ?? ($rej['reason'] ?? 'Order cancelled')) ?></div>
+                        <div><strong class="text-slate-900">Cancelled At:</strong> <?= !empty($canc['cancelled_at']) ? date('F j, Y, g:i a', strtotime($canc['cancelled_at'])) : date('F j, Y, g:i a', strtotime($order['updated_at'])) ?></div>
+                        <div><strong class="text-slate-900">Cancelled By:</strong> <?= ucfirst(htmlspecialchars((string)($canc['cancelled_by_role'] ?? 'user'))) ?></div>
+                        <?php if (!empty($canc['origin_status'])): ?>
+                            <div><strong class="text-slate-900">Origin Status:</strong> <?= htmlspecialchars($canc['origin_status']) ?></div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Status Transition Control Card -->
+    <?php
+    $canCancel = in_array($order['status'], ['pickup_request', 'accepted', 'inspection_completed'], true) 
+        && ((float)$order['amount_paid'] == 0.00);
+    $canReschedule = !in_array($order['status'], ['out_for_delivery', 'delivered', 'completed', 'cancelled'], true);
+    ?>
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Current Workflow Stage</span>
             <div class="font-bold text-slate-900 text-lg capitalize mt-0.5"><?= str_replace('_', ' ', htmlspecialchars($order['status'])) ?></div>
         </div>
-        <div>
-            <?php if ($order['status'] === 'picked_up'): ?>
+        <div class="flex flex-wrap items-center gap-3">
+            <?php if ($order['status'] === 'cancelled'): ?>
+                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-700 text-sm font-semibold border border-rose-200">
+                    <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Order Cancelled
+                </span>
+            <?php elseif ($order['status'] === 'picked_up'): ?>
                 <button type="button" onclick="document.getElementById('inspectModal').classList.remove('hidden');" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                    <span>Inspect & Price Garments</span>
+                    <span>Inspect &amp; Price Garments</span>
                 </button>
             <?php elseif ($order['status'] === 'inspection_completed'): ?>
                 <div class="flex flex-wrap items-center gap-2">
@@ -73,6 +109,23 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     Order Workflow Completed
                 </span>
+            <?php endif; ?>
+
+            <?php if ($canReschedule || $canCancel): ?>
+                <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+                    <?php if ($canReschedule): ?>
+                        <button type="button" onclick="document.getElementById('rescheduleModal').classList.remove('hidden');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition-colors border border-slate-300 flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span>Reschedule</span>
+                        </button>
+                    <?php endif; ?>
+                    <?php if ($canCancel): ?>
+                        <button type="button" onclick="document.getElementById('cancelOrderModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-3 py-2 rounded-xl text-xs transition-colors border border-rose-200 flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            <span>Cancel</span>
+                        </button>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
         </div>
     </div>
@@ -132,6 +185,26 @@ $nextStatus = Order::getNextStatus($order['status']);
                         </div>
                     <?php endif; ?>
                 </div>
+
+                <?php if (!empty($metadata['reschedules'])): ?>
+                    <div class="mt-3 pt-3 border-t border-slate-100">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Schedule Change History</span>
+                        <div class="space-y-2">
+                            <?php foreach ($metadata['reschedules'] as $rs): ?>
+                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                                    <div class="flex justify-between font-medium">
+                                        <span>Pickup: <strong><?= htmlspecialchars($rs['new_pickup_date']) ?></strong></span>
+                                        <?php if (!empty($rs['new_delivery_date'])): ?>
+                                            <span>Delivery: <strong><?= htmlspecialchars($rs['new_delivery_date']) ?></strong></span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="text-[11px] text-slate-500 italic">"<?= htmlspecialchars($rs['reason']) ?>"</div>
+                                    <div class="text-[10px] text-slate-400"><?= date('M j, Y g:ia', strtotime($rs['rescheduled_at'])) ?> &bull; by <?= htmlspecialchars($rs['rescheduled_by_role']) ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -183,8 +256,8 @@ $nextStatus = Order::getNextStatus($order['status']);
             </div>
         </div>
 
-        <!-- Record Payment Form (Shown if remaining balance > 0) -->
-        <?php if ($remBal > 0): ?>
+        <!-- Record Payment Form (Shown if remaining balance > 0 and order not cancelled) -->
+        <?php if ($remBal > 0 && $order['status'] !== 'cancelled'): ?>
             <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
                 <h4 class="text-sm font-bold text-slate-900">Record New Payment</h4>
                 <form action="/laundry-lms/orders/payment" method="POST" class="space-y-4">
@@ -231,6 +304,10 @@ $nextStatus = Order::getNextStatus($order['status']);
                 }
             }
             </script>
+        <?php elseif ($order['status'] === 'cancelled'): ?>
+            <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-200 text-xs text-rose-700">
+                This order is cancelled. Payment processing is blocked.
+            </div>
         <?php endif; ?>
 
         <!-- Payment History Audit Table -->
@@ -784,5 +861,62 @@ $nextStatus = Order::getNextStatus($order['status']);
         }
     });
     </script>
+
+    <!-- Reschedule Modal -->
+    <div id="rescheduleModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Reschedule Order #<?= htmlspecialchars($order['job_id']) ?></h3>
+                <button type="button" onclick="document.getElementById('rescheduleModal').classList.add('hidden');" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <form action="/laundry-lms/orders/reschedule" method="POST" class="space-y-4">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Pickup Date</label>
+                        <input type="date" name="pickup_date" min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($order['pickup_date']) ?>" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Delivery Date</label>
+                        <input type="date" name="delivery_date" min="<?= date('Y-m-d') ?>" value="<?= htmlspecialchars($order['delivery_date'] ?? '') ?>" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Reason for Rescheduling <span class="text-rose-500">*</span></label>
+                    <textarea name="reason" rows="3" required minlength="5" placeholder="Operational or customer requested reason (min 5 characters)..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('rescheduleModal').classList.add('hidden');" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm">Save Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Cancel Order Modal -->
+    <div id="cancelOrderModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-slate-900">Cancel Order #<?= htmlspecialchars($order['job_id']) ?></h3>
+                <button type="button" onclick="document.getElementById('cancelOrderModal').classList.add('hidden');" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+            <p class="text-xs text-slate-600">Are you sure you want to cancel this order? It will be marked as cancelled permanently and removed from operational queues.</p>
+            <form action="/laundry-lms/orders/cancel" method="POST" class="space-y-4">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Cancellation Reason <span class="text-rose-500">*</span></label>
+                    <textarea name="reason" rows="3" required minlength="5" placeholder="Operational or customer requested reason (min 5 characters)..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-rose-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="document.getElementById('cancelOrderModal').classList.add('hidden');" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl">Back</button>
+                    <button type="submit" onclick="return confirm('Confirm permanent cancellation of order #<?= htmlspecialchars($order['job_id']) ?>?');" class="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-sm">Confirm Cancellation</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 

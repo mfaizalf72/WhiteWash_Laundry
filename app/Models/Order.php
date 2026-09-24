@@ -164,6 +164,20 @@ class Order {
         return $stmt->fetchAll();
     }
 
+    public const VALID_STATUSES = [
+        'pickup_request',
+        'accepted',
+        'picked_up',
+        'inspection_completed',
+        'price_confirmed',
+        'processing',
+        'ready',
+        'out_for_delivery',
+        'delivered',
+        'completed',
+        'cancelled'
+    ];
+
     public const STATUS_SEQUENCE = [
         'pickup_request'       => 'accepted',
         'accepted'             => 'picked_up',
@@ -195,6 +209,10 @@ class Order {
             throw new \DomainException("Transition to 'price_confirmed' must be performed via confirmPriceForCustomer() or overridePriceApprovalByAdmin().");
         }
 
+        if ($requestedNewStatus === 'cancelled') {
+            throw new \DomainException("Transition to 'cancelled' must be performed via cancel() or rejectInspectedPrice().");
+        }
+
         $db = Database::getConnection();
         $db->beginTransaction();
 
@@ -210,6 +228,11 @@ class Order {
             }
 
             $currentStatus = $order['status'];
+
+            if ($currentStatus === 'cancelled') {
+                $db->rollBack();
+                throw new \DomainException("Order #{$orderId} is cancelled and cannot be transitioned.");
+            }
 
             if (!self::isValidTransition($currentStatus, $requestedNewStatus)) {
                 $expectedNext = self::getNextStatus($currentStatus);
@@ -713,6 +736,335 @@ class Order {
         }
     }
 
+    /**
+     * Cancel an unpaid order from pickup_request, accepted, or inspection_completed status.
+     */
+    public static function cancel(int $orderId, int $userId, string $role, string $reason): bool {
+        if (!in_array($role, ['customer', 'admin', 'staff'], true)) {
+            throw new \DomainException("Unauthorized: Role '{$role}' is not permitted to cancel orders.");
+        }
+
+        $trimmedReason = trim($reason);
+        if (strlen($trimmedReason) < 5) {
+            throw new \InvalidArgumentException("Cancellation reason must be at least 5 characters.");
+        }
+
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ($role === 'customer' && (int)$order['customer_id'] !== $userId) {
+                $db->rollBack();
+                throw new \DomainException("Access denied: You do not own order #{$orderId}.");
+            }
+
+            $currentStatus = $order['status'];
+            if ($role === 'customer') {
+                $allowedOriginStatuses = ['pickup_request'];
+            } else {
+                $allowedOriginStatuses = ['pickup_request', 'accepted', 'inspection_completed'];
+            }
+
+            if (!in_array($currentStatus, $allowedOriginStatuses, true)) {
+                $db->rollBack();
+                if ($role === 'customer' && in_array($currentStatus, ['accepted', 'inspection_completed'], true)) {
+                    throw new \DomainException("Customer cancellation is not permitted in status '{$currentStatus}'.");
+                }
+                throw new \DomainException("Order #{$orderId} cannot be cancelled in status '{$currentStatus}'.");
+            }
+
+            $paid = round((float)$order['amount_paid'], 2);
+            if ($paid > 0.00 || $order['payment_status'] === 'paid' || $order['payment_status'] === 'partial') {
+                $db->rollBack();
+                throw new \DomainException("Cannot cancel order #{$orderId}: Payment has been made. Refund processing is not supported.");
+            }
+
+            $cancellationType = ($role === 'customer')
+                ? 'customer_cancellation'
+                : ($role === 'admin' ? 'admin_cancellation' : 'staff_cancellation');
+
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $meta = $extracted['metadata'];
+            $meta['cancellation'] = [
+                'type'              => $cancellationType,
+                'cancelled_by'      => $userId,
+                'cancelled_by_role' => $role,
+                'cancelled_at'      => date('Y-m-d H:i:s'),
+                'reason'            => $trimmedReason,
+                'origin_status'     => $currentStatus
+            ];
+
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $upd = $db->prepare("UPDATE orders SET status = 'cancelled', special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute([
+                'inst' => $newInstructions,
+                'id'   => $orderId
+            ]);
+
+            $hist = $db->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, updated_by) VALUES (:oid, :old_status, 'cancelled', :uid)");
+            $hist->execute([
+                'oid'        => $orderId,
+                'old_status' => $currentStatus,
+                'uid'        => $userId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Customer rejects inspected price during inspection_completed status.
+     * Transitions order to 'cancelled' with structured rejection & cancellation audit.
+     */
+    public static function rejectInspectedPrice(int $orderId, int $customerId, string $expectedRevision, string $reason): bool {
+        $trimmedReason = trim($reason);
+        if (strlen($trimmedReason) < 5) {
+            throw new \InvalidArgumentException("Rejection reason must be at least 5 characters.");
+        }
+
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ((int)$order['customer_id'] !== $customerId) {
+                $db->rollBack();
+                throw new \DomainException("Access denied: You do not own order #{$orderId}.");
+            }
+
+            if ($order['status'] !== 'inspection_completed') {
+                $db->rollBack();
+                throw new \DomainException("Order #{$orderId} is not awaiting customer price approval (current status: '{$order['status']}').");
+            }
+
+            $paid = round((float)$order['amount_paid'], 2);
+            if ($paid > 0.00 || $order['payment_status'] === 'paid' || $order['payment_status'] === 'partial') {
+                $db->rollBack();
+                throw new \DomainException("Cannot reject price: Payment has already been recorded on order #{$orderId}.");
+            }
+
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $meta = $extracted['metadata'];
+            $currentRevision = (string)($meta['inspection_revision'] ?? '');
+
+            if (empty($expectedRevision) || $expectedRevision !== $currentRevision) {
+                $db->rollBack();
+                throw new \DomainException("The order price was updated. Please review the latest price before rejecting.");
+            }
+
+            $now = date('Y-m-d H:i:s');
+            $meta['approval'] = [
+                'status'           => 'rejected',
+                'approved_by'      => $customerId,
+                'approved_by_role' => 'customer',
+                'approved_at'      => $now,
+                'method'           => 'customer_portal',
+                'override_reason'  => null
+            ];
+            $meta['rejection'] = [
+                'rejected_by' => $customerId,
+                'rejected_at' => $now,
+                'reason'      => $trimmedReason,
+                'revision_id' => $expectedRevision
+            ];
+            $meta['cancellation'] = [
+                'type'              => 'customer_price_rejection',
+                'cancelled_by'      => $customerId,
+                'cancelled_by_role' => 'customer',
+                'cancelled_at'      => $now,
+                'reason'            => "Customer rejected inspected price: " . $trimmedReason,
+                'origin_status'     => 'inspection_completed'
+            ];
+
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $upd = $db->prepare("UPDATE orders SET status = 'cancelled', special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute([
+                'inst' => $newInstructions,
+                'id'   => $orderId
+            ]);
+
+            $hist = $db->prepare("INSERT INTO order_status_history (order_id, old_status, new_status, updated_by) VALUES (:oid, 'inspection_completed', 'cancelled', :uid)");
+            $hist->execute([
+                'oid' => $orderId,
+                'uid' => $customerId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * Reschedule pickup and/or delivery date with metadata audit log.
+     * Does not alter order status or create an order_status_history entry.
+     */
+    public static function reschedule(
+        int $orderId,
+        int $userId,
+        string $role,
+        ?string $newPickupDate,
+        ?string $newDeliveryDate,
+        string $reason
+    ): bool {
+        if (!in_array($role, ['customer', 'admin', 'staff'], true)) {
+            throw new \DomainException("Unauthorized: Role '{$role}' is not permitted to reschedule orders.");
+        }
+
+        $trimmedReason = trim($reason);
+        if (strlen($trimmedReason) < 5) {
+            throw new \InvalidArgumentException("Reschedule reason must be at least 5 characters.");
+        }
+
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT * FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            $currentStatus = $order['status'];
+
+            // Customer checks
+            if ($role === 'customer') {
+                if ((int)$order['customer_id'] !== $userId) {
+                    $db->rollBack();
+                    throw new \DomainException("Access denied: You do not own order #{$orderId}.");
+                }
+                if (!in_array($currentStatus, ['pickup_request', 'accepted'], true)) {
+                    $db->rollBack();
+                    throw new \DomainException("Pickup date cannot be rescheduled once order has been picked up (current status: '{$currentStatus}').");
+                }
+                if ($newDeliveryDate !== null && trim($newDeliveryDate) !== '' && trim($newDeliveryDate) !== $order['delivery_date']) {
+                    $db->rollBack();
+                    throw new \DomainException("Customers cannot reschedule delivery date directly.");
+                }
+            } else {
+                // Admin / Staff checks: cannot reschedule once out for delivery, delivered, completed, or cancelled
+                if (in_array($currentStatus, ['out_for_delivery', 'delivered', 'completed', 'cancelled'], true)) {
+                    $db->rollBack();
+                    throw new \DomainException("Order #{$orderId} cannot be rescheduled in status '{$currentStatus}'.");
+                }
+            }
+
+            // Date validation helper
+            $validateDate = function(?string $dateStr): ?string {
+                if ($dateStr === null) {
+                    return null;
+                }
+                $d = trim($dateStr);
+                if ($d === '') {
+                    return null;
+                }
+                if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) {
+                    throw new \InvalidArgumentException("Invalid date format. Expected YYYY-MM-DD.");
+                }
+                [$y, $m, $day] = explode('-', $d);
+                if (!checkdate((int)$m, (int)$day, (int)$y)) {
+                    throw new \InvalidArgumentException("Invalid calendar date '{$d}'.");
+                }
+                return $d;
+            };
+
+            $pDate = $validateDate($newPickupDate);
+            $dDate = $validateDate($newDeliveryDate);
+
+            $today = date('Y-m-d');
+            if ($pDate !== null && $pDate < $today) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Pickup date cannot be in the past.");
+            }
+            if ($dDate !== null && $dDate < $today) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Delivery date cannot be in the past.");
+            }
+
+            $effectivePickupDate   = $pDate ?? $order['pickup_date'];
+            $effectiveDeliveryDate = $dDate ?? $order['delivery_date'];
+
+            if (!empty($effectiveDeliveryDate) && !empty($effectivePickupDate) && $effectiveDeliveryDate < $effectivePickupDate) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Delivery date cannot be earlier than pickup date.");
+            }
+
+            $pickupChanged   = ($pDate !== null && $pDate !== $order['pickup_date']);
+            $deliveryChanged = ($dDate !== null && $dDate !== $order['delivery_date']);
+
+            if (!$pickupChanged && !$deliveryChanged) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("No schedule changes detected.");
+            }
+
+            $extracted = OrderMetadata::extract($order['special_instructions']);
+            $meta = $extracted['metadata'];
+            $reschedules = $meta['reschedules'] ?? [];
+            $reschedules[] = [
+                'rescheduled_by'      => $userId,
+                'rescheduled_by_role' => $role,
+                'rescheduled_at'      => date('Y-m-d H:i:s'),
+                'old_pickup_date'     => $order['pickup_date'],
+                'new_pickup_date'     => $effectivePickupDate,
+                'old_delivery_date'   => $order['delivery_date'],
+                'new_delivery_date'   => $effectiveDeliveryDate,
+                'reason'              => $trimmedReason
+            ];
+            $meta['reschedules'] = $reschedules;
+
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $upd = $db->prepare("UPDATE orders SET pickup_date = :pdate, delivery_date = :ddate, special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->execute([
+                'pdate' => $effectivePickupDate,
+                'ddate' => $effectiveDeliveryDate,
+                'inst'  => $newInstructions,
+                'id'    => $orderId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
     public static function getCustomerKpis(int $customerId): array {
         $db = Database::getConnection();
 
@@ -720,7 +1072,7 @@ class Order {
         $stmtTotal->execute(['cid' => $customerId]);
         $total = (int)$stmtTotal->fetchColumn();
 
-        $stmtActive = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = :cid AND status != 'completed'");
+        $stmtActive = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = :cid AND status NOT IN ('completed', 'cancelled')");
         $stmtActive->execute(['cid' => $customerId]);
         $active = (int)$stmtActive->fetchColumn();
 
@@ -728,7 +1080,7 @@ class Order {
         $stmtCompleted->execute(['cid' => $customerId]);
         $completed = (int)$stmtCompleted->fetchColumn();
 
-        $stmtBalance = $db->prepare("SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM orders WHERE customer_id = :cid");
+        $stmtBalance = $db->prepare("SELECT COALESCE(SUM(total_amount - amount_paid), 0) FROM orders WHERE customer_id = :cid AND status != 'cancelled'");
         $stmtBalance->execute(['cid' => $customerId]);
         $outstanding = round((float)$stmtBalance->fetchColumn(), 2);
 
@@ -753,11 +1105,13 @@ class Order {
         $params = ['cid' => $customerId];
 
         if ($filter === 'active') {
-            $conditions[] = "status != 'completed'";
+            $conditions[] = "status NOT IN ('completed', 'cancelled')";
         } elseif ($filter === 'completed') {
             $conditions[] = "status = 'completed'";
+        } elseif ($filter === 'cancelled') {
+            $conditions[] = "status = 'cancelled'";
         } elseif ($filter === 'pending') {
-            $conditions[] = "(payment_status != 'paid' OR amount_paid < total_amount)";
+            $conditions[] = "(payment_status != 'paid' OR amount_paid < total_amount) AND status != 'cancelled'";
         }
 
         $where = implode(" AND ", $conditions);
@@ -840,7 +1194,7 @@ class Order {
         $params = [];
 
         // Valid statuses state machine whitelist
-        $validStatuses = array_merge(array_keys(self::STATUS_SEQUENCE), ['completed']);
+        $validStatuses = self::VALID_STATUSES;
 
         if (!empty($filters['status']) && in_array($filters['status'], $validStatuses, true)) {
             $conditions[] = "o.status = :status";
@@ -905,13 +1259,18 @@ class Order {
 
         try {
             // Lock order row
-            $stmt = $db->prepare("SELECT id, staff_id FROM orders WHERE id = :id FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, staff_id, status FROM orders WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $orderId]);
             $order = $stmt->fetch();
 
             if (!$order) {
                 $db->rollBack();
                 throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ($order['status'] === 'cancelled') {
+                $db->rollBack();
+                throw new \DomainException("Cannot claim a cancelled order.");
             }
 
             if (!empty($order['staff_id'])) {

@@ -540,4 +540,69 @@ class CustomerPortalController {
 
         Router::redirect('/customer/orders/show?id=' . $orderId);
     }
+
+    public function cancelOrder(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $orderId    = (int)($_POST['order_id'] ?? 0);
+        $reason     = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for cancellation.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        try {
+            Order::cancel($orderId, $customerId, 'customer', $reason);
+            $_SESSION['success'] = "Order #{$orderId} has been cancelled successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        Router::redirect('/customer/orders/show?id=' . $orderId);
+    }
+
+    public function rejectPrice(): void {
+        $customerId       = (int)($_SESSION['user_id'] ?? 0);
+        $orderId          = (int)($_POST['order_id'] ?? 0);
+        $expectedRevision = trim((string)($_POST['expected_revision'] ?? ''));
+        $reason           = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for price rejection.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        try {
+            Order::rejectInspectedPrice($orderId, $customerId, $expectedRevision, $reason);
+            $_SESSION['success'] = "Inspected price rejected. Order #{$orderId} has been cancelled.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        Router::redirect('/customer/orders/show?id=' . $orderId);
+    }
+
+    public function reschedule(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $orderId    = (int)($_POST['order_id'] ?? 0);
+        $pickupDate = !empty($_POST['pickup_date']) ? trim((string)$_POST['pickup_date']) : null;
+        $reason     = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for rescheduling.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        try {
+            Order::reschedule($orderId, $customerId, 'customer', $pickupDate, null, $reason);
+            $_SESSION['success'] = "Pickup date for order #{$orderId} has been rescheduled successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        Router::redirect('/customer/orders/show?id=' . $orderId);
+    }
 }

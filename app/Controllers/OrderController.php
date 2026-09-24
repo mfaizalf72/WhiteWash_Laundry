@@ -497,4 +497,58 @@ class OrderController {
         }
         Router::redirect($redirect);
     }
+
+    public function cancel(): void {
+        $userId   = (int)($_SESSION['user_id'] ?? 0);
+        $userRole = (string)($_SESSION['user_role'] ?? '');
+        $orderId  = (int)($_POST['order_id'] ?? 0);
+        $reason   = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for cancellation.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        try {
+            Order::cancel($orderId, $userId, $userRole, $reason);
+            $_SESSION['success'] = "Order #{$orderId} cancelled successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
+    }
+
+    public function reschedule(): void {
+        $userId       = (int)($_SESSION['user_id'] ?? 0);
+        $userRole     = (string)($_SESSION['user_role'] ?? '');
+        $orderId      = (int)($_POST['order_id'] ?? 0);
+        $pickupDate   = !empty($_POST['pickup_date']) ? trim((string)$_POST['pickup_date']) : null;
+        $deliveryDate = !empty($_POST['delivery_date']) ? trim((string)$_POST['delivery_date']) : null;
+        $reason       = trim((string)($_POST['reason'] ?? ''));
+
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for rescheduling.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        try {
+            Order::reschedule($orderId, $userId, $userRole, $pickupDate, $deliveryDate, $reason);
+            $_SESSION['success'] = "Schedule for order #{$orderId} updated successfully.";
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+        Router::redirect($redirect);
+    }
 }

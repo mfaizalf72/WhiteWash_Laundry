@@ -27,6 +27,11 @@ class Payment {
                 throw new \InvalidArgumentException("Order not found.");
             }
 
+            if ($order['status'] === 'cancelled') {
+                $db->rollBack();
+                throw new \DomainException("Cannot record payment for a cancelled order.");
+            }
+
             // 2. Validate payment method
             if (!in_array($method, ['cash', 'upi'], true)) {
                 $db->rollBack();

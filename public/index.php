@@ -61,6 +61,9 @@ $router->get('/customer/orders', 'Faizal\LaundryLms\Controllers\CustomerPortalCo
 $router->get('/customer/orders/show', 'Faizal\LaundryLms\Controllers\CustomerPortalController@showOrder', $customerAuth);
 $router->post('/customer/orders/approve-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
 $router->post('/customer/orders/approve', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
+$router->post('/customer/orders/reject-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@rejectPrice', $customerAuthCsrf);
+$router->post('/customer/orders/cancel', 'Faizal\LaundryLms\Controllers\CustomerPortalController@cancelOrder', $customerAuthCsrf);
+$router->post('/customer/orders/reschedule', 'Faizal\LaundryLms\Controllers\CustomerPortalController@reschedule', $customerAuthCsrf);
 $router->get('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@createOrderForm', $customerAuth);
 $router->post('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@storeOrder', $customerAuthCsrf);
 $router->get('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@profile', $customerAuth);
@@ -105,6 +108,8 @@ $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@
 $router->post('/orders/claim', 'Faizal\LaundryLms\Controllers\OrderController@claimOrder', $staffOnlyAuthCsrf);
 $router->post('/orders/inspect', 'Faizal\LaundryLms\Controllers\OrderController@submitInspection', $authRoleCsrf);
 $router->post('/orders/override-price-approval', 'Faizal\LaundryLms\Controllers\OrderController@overridePriceApproval', $adminOnlyAuthCsrf);
+$router->post('/orders/cancel', 'Faizal\LaundryLms\Controllers\OrderController@cancel', $authRoleCsrf);
+$router->post('/orders/reschedule', 'Faizal\LaundryLms\Controllers\OrderController@reschedule', $authRoleCsrf);
 
 // Reports Route (Admin & Staff)
 $router->get('/reports', 'Faizal\LaundryLms\Controllers\ReportController@index', $authRole);

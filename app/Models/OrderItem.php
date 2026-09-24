@@ -13,7 +13,8 @@ class OrderItem {
         'ready',
         'out_for_delivery',
         'delivered',
-        'completed'
+        'completed',
+        'cancelled'
     ];
 
     /**
