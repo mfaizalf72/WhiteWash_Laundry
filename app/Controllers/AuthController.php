@@ -5,6 +5,7 @@ namespace Faizal\LaundryLms\Controllers;
 
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\User;
+use Faizal\LaundryLms\Models\LoginAttempt;
 use Faizal\LaundryLms\Helpers\Security;
 
 class AuthController {
@@ -27,6 +28,12 @@ class AuthController {
             return;
         }
 
+        // Check persistent rate limiting (mobile + IP)
+        if (LoginAttempt::isLocked($mobile)) {
+            $this->backWithErrors("Too many failed login attempts. Please try again in 15 minutes.");
+            return;
+        }
+
         $user = User::findByMobile($mobile);
 
         if ($user && password_verify($pin, $user['pin_hash'])) {
@@ -34,6 +41,9 @@ class AuthController {
                 $this->backWithErrors("Your account is currently inactive. Please contact support.");
                 return;
             }
+
+            // Successful authentication clears failed attempt records
+            LoginAttempt::clearAttempts($mobile);
 
             // Regenerate session ID to prevent session fixation attacks
             session_regenerate_id(true);
@@ -57,6 +67,7 @@ class AuthController {
                 Router::redirect('/dashboard');
             }
         } else {
+            LoginAttempt::recordFailure($mobile);
             $this->backWithErrors("Invalid mobile number or PIN.");
         }
     }
