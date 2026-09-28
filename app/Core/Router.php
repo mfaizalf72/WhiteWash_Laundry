@@ -67,6 +67,13 @@ class Router {
     public static function view(string $view, array $data = [], string $layout = 'app'): void {
         extract($data);
         $content = __DIR__ . "/../../views/pages/{$view}.php";
+        if ($layout === '' || $layout === 'none') {
+            if (file_exists($content)) {
+                require_once $content;
+                return;
+            }
+            die("View file not found.");
+        }
         $layoutFile = __DIR__ . "/../../views/layouts/{$layout}.php";
         
         if (file_exists($content) && file_exists($layoutFile)) {

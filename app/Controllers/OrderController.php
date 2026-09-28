@@ -551,4 +551,38 @@ class OrderController {
         }
         Router::redirect($redirect);
     }
+
+    public function printJobCard(): void {
+        $id = (int)($_GET['id'] ?? 0);
+        $order = $id > 0 ? Order::find($id) : null;
+
+        if (!$order) {
+            http_response_code(404);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>404 Not Found</h1>" .
+                 "<p style='color: #475569;'>Order not found or invalid order ID.</p>" .
+                 "<p><a href='/laundry-lms/orders' style='color: #2563eb; text-decoration: underline;'>Return to Orders Directory</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        $orderItems = Order::getItems($id);
+        $extracted  = OrderMetadata::extract($order['special_instructions']);
+        $history    = Order::getStatusHistory($id);
+        $payments   = Payment::getByOrderId($id);
+        $settings   = Settings::get();
+
+        Router::view('orders/print', [
+            'title'        => 'Job Card - ' . $order['job_id'],
+            'mode'         => 'job_card',
+            'order'        => $order,
+            'orderItems'   => $orderItems,
+            'history'      => $history,
+            'payments'     => $payments,
+            'settings'     => $settings,
+            'customerNote' => $extracted['customer_note'],
+            'metadata'     => $extracted['metadata'],
+            'backUrl'      => '/laundry-lms/orders/show?id=' . $order['id']
+        ], 'print');
+    }
 }

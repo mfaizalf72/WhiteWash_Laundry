@@ -17,6 +17,10 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
             <p class="text-xs text-slate-500">Placed on <?= date('F d, Y \a\t h:i A', strtotime($order['created_at'])) ?></p>
         </div>
         <div class="flex items-center space-x-3">
+            <a href="/laundry-lms/customer/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition">
+                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Print Receipt
+            </a>
             <?php if ($order['status'] === 'cancelled'): ?>
                 <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
                     Status: Cancelled

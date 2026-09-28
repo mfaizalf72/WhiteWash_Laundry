@@ -22,12 +22,18 @@ $nextStatus = Order::getNextStatus($order['status']);
             </div>
             <p class="text-xs text-slate-400 mt-1">Created on <?= htmlspecialchars(date('F j, Y, g:i a', strtotime($order['created_at']))) ?></p>
         </div>
-        <div class="text-right">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Amount</span>
-            <span class="text-2xl font-bold font-mono text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 mt-1 uppercase">
-                <?= htmlspecialchars($order['payment_status']) ?>
-            </span>
+        <div class="text-right flex flex-col items-end gap-2">
+            <div>
+                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Amount</span>
+                <span class="text-2xl font-bold font-mono text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 mt-1 uppercase">
+                    <?= htmlspecialchars($order['payment_status']) ?>
+                </span>
+            </div>
+            <a href="/laundry-lms/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 shadow-sm transition">
+                <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                Print Job Card
+            </a>
         </div>
     </div>
 

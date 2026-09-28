@@ -605,4 +605,51 @@ class CustomerPortalController {
 
         Router::redirect('/customer/orders/show?id=' . $orderId);
     }
+
+    public function printReceipt(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $orderId    = (int)($_GET['id'] ?? 0);
+
+        if ($orderId <= 0) {
+            http_response_code(403);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
+                 "<p style='color: #475569;'>Invalid order ID specified.</p>" .
+                 "<p><a href='/laundry-lms/customer/orders' style='color: #2563eb; text-decoration: underline;'>Return to My Orders</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        // Strict Server-Side Customer Ownership Check via Database
+        $order = Order::findForCustomer($orderId, $customerId);
+
+        if (!$order) {
+            http_response_code(403);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
+                 "<p style='color: #475569;'>Access denied: You are not authorized to view or print this receipt.</p>" .
+                 "<p><a href='/laundry-lms/customer/orders' style='color: #2563eb; text-decoration: underline;'>Return to My Orders</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        $orderItems = Order::getItems($orderId);
+        $extracted  = OrderMetadata::extract($order['special_instructions']);
+        $history    = Order::getStatusHistory($orderId);
+        $payments   = Payment::getByOrderId($orderId);
+        $settings   = Settings::get();
+
+        Router::view('orders/print', [
+            'title'        => 'Receipt - ' . $order['job_id'],
+            'mode'         => 'receipt',
+            'order'        => $order,
+            'orderItems'   => $orderItems,
+            'history'      => $history,
+            'payments'     => $payments,
+            'settings'     => $settings,
+            'customerNote' => $extracted['customer_note'],
+            'metadata'     => $extracted['metadata'],
+            'backUrl'      => '/laundry-lms/customer/orders/show?id=' . $order['id']
+        ], 'print');
+    }
 }
