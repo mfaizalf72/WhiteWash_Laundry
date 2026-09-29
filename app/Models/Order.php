@@ -106,6 +106,45 @@ class Order {
         return OrderItem::getByOrderId($orderId);
     }
 
+    /**
+     * Compute pickup and delivery fee breakdown based on items subtotal and business settings.
+     *
+     * @param float $itemsSubtotal Items aggregate subtotal
+     * @param array|null $settings Business settings array (optional, fetches if null)
+     * @return array{pickup_charge: float, delivery_charge: float, free_pickup_limit: float, pickup_fee: float, delivery_fee: float, total_charges: float}
+     */
+    public static function getDeliveryFeeBreakdown(float $itemsSubtotal, ?array $settings = null): array {
+        $settings = $settings ?? Settings::get();
+        $pickupCharge    = (float)($settings['pickup_charge'] ?? 0);
+        $deliveryCharge  = (float)($settings['delivery_charge'] ?? 0);
+        $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
+
+        $isChargeable = ($freePickupLimit <= 0 || $itemsSubtotal < $freePickupLimit);
+        $pickupFee    = $isChargeable ? $pickupCharge : 0.00;
+        $deliveryFee  = $isChargeable ? $deliveryCharge : 0.00;
+        $totalCharges = round($pickupFee + $deliveryFee, 2);
+
+        return [
+            'pickup_charge'     => $pickupCharge,
+            'delivery_charge'   => $deliveryCharge,
+            'free_pickup_limit' => $freePickupLimit,
+            'pickup_fee'        => $pickupFee,
+            'delivery_fee'      => $deliveryFee,
+            'total_charges'     => $totalCharges,
+        ];
+    }
+
+    /**
+     * Compute total delivery/pickup charges based on items subtotal and business settings.
+     *
+     * @param float $itemsSubtotal Items aggregate subtotal
+     * @param array|null $settings Business settings array (optional, fetches if null)
+     * @return float Total delivery/pickup charges (0.00 if threshold reached)
+     */
+    public static function calculateDeliveryCharges(float $itemsSubtotal, ?array $settings = null): float {
+        return self::getDeliveryFeeBreakdown($itemsSubtotal, $settings)['total_charges'];
+    }
+
     public static function all(array $filters = []): array {
         $db = Database::getConnection();
         $conditions = ["1=1"];
@@ -324,88 +363,9 @@ class Order {
             $itemsSubtotal = 0.00;
 
             if ($isMultiItem) {
-                if (count($rawLinesInput) === 0) {
-                    $db->rollBack();
-                    throw new \InvalidArgumentException("Inspection items list cannot be empty.");
-                }
-
-                $seenKeys = [];
-                $displayOrder = 1;
-
-                foreach ($rawLinesInput as $rawLine) {
-                    $itemId     = (int)($rawLine['item_id'] ?? 0);
-                    $workTypeId = (int)($rawLine['work_type_id'] ?? 0);
-                    $rawQty     = $rawLine['quantity'] ?? null;
-
-                    // Duplicate item and work type check
-                    $pairKey = "{$itemId}_{$workTypeId}";
-                    if (isset($seenKeys[$pairKey])) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("Duplicate item and work type combination detected for item #{$itemId} and work type #{$workTypeId}. Each item and service treatment must be unique per order.");
-                    }
-                    $seenKeys[$pairKey] = true;
-
-                    // Verify active item
-                    $itemObj = LaundryItem::find($itemId);
-                    if (!$itemObj) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("Selected laundry item #{$itemId} is invalid or soft-deleted.");
-                    }
-
-                    // Verify active work type
-                    $workTypeObj = WorkType::find($workTypeId);
-                    if (!$workTypeObj) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("Selected work type #{$workTypeId} is invalid or soft-deleted.");
-                    }
-
-                    // Verify pricing
-                    $pricing = Pricing::find($itemId, $workTypeId);
-                    if (!$pricing) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("No valid pricing configuration exists for '{$itemObj['name']}' and '{$workTypeObj['name']}'.");
-                    }
-
-                    // Validate quantity
-                    if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("Quantity or weight must be a valid positive number.");
-                    }
-                    if ((float)$rawQty > 1000) {
-                        $db->rollBack();
-                        throw new \InvalidArgumentException("Quantity or weight cannot exceed 1,000.");
-                    }
-
-                    $pricingType = $pricing['pricing_type'];
-                    if ($pricingType === 'per_item') {
-                        if (floor((float)$rawQty) != (float)$rawQty) {
-                            $db->rollBack();
-                            throw new \InvalidArgumentException("Quantity for per-item service ('{$itemObj['name']}') must be a whole positive integer.");
-                        }
-                        $quantity = (float)floor((float)$rawQty);
-                    } else {
-                        $quantity = round((float)$rawQty, 2);
-                    }
-
-                    $unitPrice = (float)$pricing['price'];
-                    $lineSubtotal = round($unitPrice * $quantity, 2);
-                    $itemsSubtotal += $lineSubtotal;
-
-                    $lineNote = !empty($rawLine['item_notes']) ? trim((string)$rawLine['item_notes']) : (!empty($rawLine['notes']) ? trim((string)$rawLine['notes']) : null);
-
-                    $validatedLines[] = [
-                        'item_id'        => $itemId,
-                        'item_name'      => $itemObj['name'],
-                        'work_type_id'   => $workTypeId,
-                        'work_type_name' => $workTypeObj['name'],
-                        'quantity'       => $quantity,
-                        'unit_price'     => $unitPrice,
-                        'pricing_type'   => $pricingType,
-                        'subtotal'       => $lineSubtotal,
-                        'item_notes'     => $lineNote,
-                        'display_order'  => $displayOrder++
-                    ];
-                }
+                $validated = OrderItem::validateLines($rawLinesInput);
+                $validatedLines = $validated['lines'];
+                $itemsSubtotal  = $validated['subtotal'];
             } else {
                 // Single-item fallback (Phase 10B legacy parameters)
                 $itemId     = (int)($data['item_id'] ?? 0);
@@ -470,17 +430,10 @@ class Order {
             $itemsSubtotal = round($itemsSubtotal, 2);
 
             // Business settings fee logic
-            $settings = Settings::get();
-            $pickupCharge    = (float)($settings['pickup_charge'] ?? 0);
-            $deliveryCharge  = (float)($settings['delivery_charge'] ?? 0);
-            $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
-
-            $addedCharges = 0.00;
-            if ($freePickupLimit <= 0 || $itemsSubtotal < $freePickupLimit) {
-                $addedCharges = $pickupCharge + $deliveryCharge;
-            }
-
-            $newTotal = round($itemsSubtotal + $addedCharges, 2);
+            $settings     = Settings::get();
+            $feeBreakdown = self::getDeliveryFeeBreakdown($itemsSubtotal, $settings);
+            $addedCharges = $feeBreakdown['total_charges'];
+            $newTotal     = round($itemsSubtotal + $addedCharges, 2);
 
             // Strict Price Reduction Rule: new_total < amount_paid is REJECTED
             $amountPaid = round((float)$order['amount_paid'], 2);
@@ -519,9 +472,9 @@ class Order {
                 'inspected_at'      => date('Y-m-d H:i:s'),
                 'items'             => $validatedLines,
                 'items_subtotal'    => $itemsSubtotal,
-                'pickup_fee'        => ($addedCharges > 0) ? $pickupCharge : 0.00,
-                'delivery_fee'      => ($addedCharges > 0) ? $deliveryCharge : 0.00,
-                'free_pickup_limit' => $freePickupLimit,
+                'pickup_fee'        => $feeBreakdown['pickup_fee'],
+                'delivery_fee'      => $feeBreakdown['delivery_fee'],
+                'free_pickup_limit' => $feeBreakdown['free_pickup_limit'],
                 'calculated_total'  => $newTotal,
                 'garment_notes'     => $garmentNotes
             ];

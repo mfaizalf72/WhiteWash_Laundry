@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace Faizal\LaundryLms\Models;
 
 use Faizal\LaundryLms\Core\Database;
+use Faizal\LaundryLms\Models\LaundryItem;
+use Faizal\LaundryLms\Models\WorkType;
+use Faizal\LaundryLms\Models\Pricing;
 use PDO;
 
 class OrderItem {
@@ -106,5 +109,109 @@ class OrderItem {
 
         // Insert new items
         return self::insertLines($orderId, $items, $db);
+    }
+
+    /**
+     * Validate and normalize raw multi-item line inputs.
+     *
+     * Validates item existence, work type existence, active pricing,
+     * duplicate item/work pairs, quantity constraints, and computes authoritative subtotals.
+     *
+     * @param array $rawLines List of raw item line inputs
+     * @return array{lines: array, subtotal: float} Validated lines with calculated subtotals and aggregate subtotal
+     * @throws \InvalidArgumentException On any validation error or empty line list
+     */
+    public static function validateLines(array $rawLines): array {
+        $validatedLines = [];
+        $itemsSubtotal  = 0.00;
+        $seenKeys       = [];
+        $displayOrder   = 1;
+
+        foreach ($rawLines as $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+
+            $itemId     = (int)($line['item_id'] ?? 0);
+            $workTypeId = (int)($line['work_type_id'] ?? 0);
+            $rawQty     = $line['quantity'] ?? null;
+
+            // Skip completely empty form lines
+            if ($itemId <= 0 && $workTypeId <= 0 && ($rawQty === null || $rawQty === '')) {
+                continue;
+            }
+
+            // 1. Check duplicate item and work type combination
+            $pairKey = "{$itemId}_{$workTypeId}";
+            if (isset($seenKeys[$pairKey])) {
+                throw new \InvalidArgumentException("Duplicate item and work type combination detected. Each item and service treatment must be unique per order.");
+            }
+            $seenKeys[$pairKey] = true;
+
+            // 2. Validate laundry item
+            $itemObj = LaundryItem::find($itemId);
+            if (!$itemObj) {
+                throw new \InvalidArgumentException("Selected laundry item is invalid or soft-deleted.");
+            }
+
+            // 3. Validate work type
+            $workTypeObj = WorkType::find($workTypeId);
+            if (!$workTypeObj) {
+                throw new \InvalidArgumentException("Selected work type is invalid or soft-deleted.");
+            }
+
+            // 4. Validate pricing configuration
+            $pricing = Pricing::find($itemId, $workTypeId);
+            if (!$pricing) {
+                throw new \InvalidArgumentException("No valid pricing configuration exists for '{$itemObj['name']}' and '{$workTypeObj['name']}'.");
+            }
+
+            // 5. Validate quantity / weight
+            if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
+                throw new \InvalidArgumentException("Quantity or weight must be a valid number greater than zero.");
+            }
+            if ((float)$rawQty > 1000) {
+                throw new \InvalidArgumentException("Quantity or weight cannot exceed 1,000.");
+            }
+
+            $pricingType = $pricing['pricing_type'];
+            if ($pricingType === 'per_item') {
+                if (floor((float)$rawQty) != (float)$rawQty) {
+                    throw new \InvalidArgumentException("Quantity for per-item services must be a whole positive integer.");
+                }
+                $quantity = (float)floor((float)$rawQty);
+            } else {
+                $quantity = round((float)$rawQty, 2);
+            }
+
+            // 6. Authoritative server-side subtotal calculation (browser-supplied unit_price or subtotal NEVER trusted)
+            $unitPrice    = (float)$pricing['price'];
+            $lineSubtotal = round($unitPrice * $quantity, 2);
+            $itemsSubtotal += $lineSubtotal;
+
+            $lineNote = !empty($line['item_notes']) ? trim((string)$line['item_notes']) : (!empty($line['notes']) ? trim((string)$line['notes']) : null);
+
+            $validatedLines[] = [
+                'item_id'        => $itemId,
+                'item_name'      => $itemObj['name'],
+                'work_type_id'   => $workTypeId,
+                'work_type_name' => $workTypeObj['name'],
+                'quantity'       => $quantity,
+                'unit_price'     => $unitPrice,
+                'pricing_type'   => $pricingType,
+                'subtotal'       => $lineSubtotal,
+                'item_notes'     => $lineNote,
+                'display_order'  => $displayOrder++
+            ];
+        }
+
+        if (empty($validatedLines)) {
+            throw new \InvalidArgumentException("Please add at least one valid laundry item and service.");
+        }
+
+        return [
+            'lines'    => $validatedLines,
+            'subtotal' => round($itemsSubtotal, 2)
+        ];
     }
 }

@@ -11,6 +11,7 @@ use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
 use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
+use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 
@@ -140,91 +141,12 @@ class CustomerPortalController {
         $isMulti = !empty($_POST['items']) && is_array($_POST['items']);
 
         if ($isMulti) {
-            $seenKeys = [];
-            $displayOrder = 1;
-            foreach ($_POST['items'] as $line) {
-                $itemId     = (int)($line['item_id'] ?? 0);
-                $workTypeId = (int)($line['work_type_id'] ?? 0);
-                $rawQty     = $line['quantity'] ?? null;
-
-                if ($itemId <= 0 && $workTypeId <= 0 && empty($rawQty)) {
-                    continue;
-                }
-
-                $pairKey = "{$itemId}_{$workTypeId}";
-                if (isset($seenKeys[$pairKey])) {
-                    $_SESSION['error'] = "Duplicate item and work type combination detected. Each item and service treatment must be unique per order.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-                $seenKeys[$pairKey] = true;
-
-                $itemObj = LaundryItem::find($itemId);
-                if (!$itemObj) {
-                    $_SESSION['error'] = "Selected laundry item is invalid.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-
-                $workTypeObj = WorkType::find($workTypeId);
-                if (!$workTypeObj) {
-                    $_SESSION['error'] = "Selected work type is invalid.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-
-                $pricing = Pricing::find($itemId, $workTypeId);
-                if (!$pricing) {
-                    $_SESSION['error'] = "No valid pricing configuration exists for '{$itemObj['name']}' and '{$workTypeObj['name']}'.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-
-                if (!is_numeric($rawQty) || (float)$rawQty <= 0) {
-                    $_SESSION['error'] = "Quantity or weight must be a valid number greater than zero.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-                if ((float)$rawQty > 1000) {
-                    $_SESSION['error'] = "Quantity or weight cannot exceed 1,000.";
-                    Router::redirect('/customer/orders/create');
-                    return;
-                }
-
-                $pricingType = $pricing['pricing_type'];
-                if ($pricingType === 'per_item') {
-                    if (floor((float)$rawQty) != (float)$rawQty) {
-                        $_SESSION['error'] = "Quantity for per-item services must be a whole positive integer.";
-                        Router::redirect('/customer/orders/create');
-                        return;
-                    }
-                    $quantity = (float)floor((float)$rawQty);
-                } else {
-                    $quantity = round((float)$rawQty, 2);
-                }
-
-                $unitPrice = (float)$pricing['price'];
-                $subtotal = round($unitPrice * $quantity, 2);
-                $itemsSubtotal += $subtotal;
-
-                $lineNote = !empty($line['item_notes']) ? trim((string)$line['item_notes']) : (!empty($line['notes']) ? trim((string)$line['notes']) : null);
-
-                $validatedLines[] = [
-                    'item_id'        => $itemId,
-                    'item_name'      => $itemObj['name'],
-                    'work_type_id'   => $workTypeId,
-                    'work_type_name' => $workTypeObj['name'],
-                    'quantity'       => $quantity,
-                    'unit_price'     => $unitPrice,
-                    'pricing_type'   => $pricingType,
-                    'subtotal'       => $subtotal,
-                    'item_notes'     => $lineNote,
-                    'display_order'  => $displayOrder++
-                ];
-            }
-
-            if (empty($validatedLines)) {
-                $_SESSION['error'] = "Please add at least one valid laundry item and service.";
+            try {
+                $validation = OrderItem::validateLines($_POST['items']);
+                $validatedLines = $validation['lines'];
+                $itemsSubtotal  = $validation['subtotal'];
+            } catch (\InvalidArgumentException $e) {
+                $_SESSION['error'] = $e->getMessage();
                 Router::redirect('/customer/orders/create');
                 return;
             }
@@ -298,17 +220,9 @@ class CustomerPortalController {
         $itemsSubtotal = round($itemsSubtotal, 2);
 
         // 3. Strict Server-Side Total Amount Calculation
-        $settings        = Settings::get();
-        $pickupCharge    = (float)($settings['pickup_charge'] ?? 0);
-        $deliveryCharge  = (float)($settings['delivery_charge'] ?? 0);
-        $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
-
-        $addedCharges = 0.00;
-        if ($freePickupLimit <= 0 || $itemsSubtotal < $freePickupLimit) {
-            $addedCharges = $pickupCharge + $deliveryCharge;
-        }
-
-        $totalAmount = round($itemsSubtotal + $addedCharges, 2);
+        $settings     = Settings::get();
+        $addedCharges = Order::calculateDeliveryCharges($itemsSubtotal, $settings);
+        $totalAmount  = round($itemsSubtotal + $addedCharges, 2);
 
         // Build service breakdown summary
         $lineSummaries = [];
