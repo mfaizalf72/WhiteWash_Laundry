@@ -5,12 +5,17 @@ namespace Faizal\LaundryLms\Controllers;
 
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\User;
+use Faizal\LaundryLms\Models\Customer;
 use Faizal\LaundryLms\Models\LoginAttempt;
 use Faizal\LaundryLms\Helpers\Security;
 
 class AuthController {
     public function showLogin(): void {
         Router::view('auth/login', ['title' => 'Sign In - Launder']);
+    }
+
+    public function showRegister(): void {
+        Router::view('auth/register', ['title' => 'Create Account - Launder']);
     }
 
     public function login(): void {
@@ -99,5 +104,105 @@ class AuthController {
         }
         $_SESSION['error'] = $message;
         Router::redirect('/login');
+    }
+
+    public function register(): void {
+        // 1. Check IP rate limiting before processing
+        if (LoginAttempt::isRegistrationLocked()) {
+            $this->backToRegisterWithErrors("Too many registration attempts. Please try again in 15 minutes.");
+            return;
+        }
+
+        // Record the registration attempt so abuse cannot bypass throttling with malformed payloads
+        LoginAttempt::recordRegistrationAttempt();
+
+        $name       = trim((string)($_POST['name'] ?? ''));
+        $rawMobile  = (string)($_POST['mobile'] ?? '');
+        $mobile     = Security::sanitizeMobile($rawMobile);
+        $address    = trim((string)($_POST['address'] ?? ''));
+        $pin        = trim((string)($_POST['pin'] ?? ''));
+        $confirmPin = trim((string)($_POST['confirm_pin'] ?? ''));
+
+        // 2. Name validation
+        if (empty($name)) {
+            $this->backToRegisterWithErrors("Full name is required.");
+            return;
+        }
+        if (strlen($name) > 100) {
+            $this->backToRegisterWithErrors("Full name cannot exceed 100 characters.");
+            return;
+        }
+
+        // 3. Mobile validation
+        if (empty($mobile)) {
+            $this->backToRegisterWithErrors("Mobile number is required.");
+            return;
+        }
+        if (strlen($mobile) < 10 || strlen($mobile) > 15) {
+            $this->backToRegisterWithErrors("Please enter a valid mobile number (10 to 15 digits).");
+            return;
+        }
+
+        // 4. Address validation
+        if (empty($address)) {
+            $this->backToRegisterWithErrors("Address is required for pickup and delivery services.");
+            return;
+        }
+
+        // 5. PIN format validation
+        if (strlen($pin) !== 4 || !ctype_digit($pin)) {
+            $this->backToRegisterWithErrors("PIN must be exactly 4 digits.");
+            return;
+        }
+
+        // 6. Prohibited trivial PINs
+        if ($pin === '1234') {
+            $this->backToRegisterWithErrors("The default PIN '1234' is not allowed for security reasons.");
+            return;
+        }
+        if ($pin === '4321') {
+            $this->backToRegisterWithErrors("PIN '4321' is too obvious. Please choose a more secure PIN.");
+            return;
+        }
+        if (preg_match('/^(\d)\1{3}$/', $pin)) {
+            $this->backToRegisterWithErrors("PIN cannot consist of four identical digits (e.g. 0000, 1111).");
+            return;
+        }
+
+        // 7. PIN confirmation check
+        if ($pin !== $confirmPin) {
+            $this->backToRegisterWithErrors("PIN confirmation does not match.");
+            return;
+        }
+
+        // 8. Mobile uniqueness check (database unique constraint remains authoritative)
+        if (Customer::findByMobile($mobile)) {
+            $this->backToRegisterWithErrors("An account with mobile number '{$mobile}' already exists. Please sign in.");
+            return;
+        }
+
+        // 9. Persist customer account (role strictly forced to customer, is_active forced to 1)
+        Customer::create([
+            'name'      => $name,
+            'mobile'    => $mobile,
+            'pin'       => $pin,
+            'address'   => $address,
+            'is_active' => 1
+        ]);
+
+        // 10. Success notification and redirect to login
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['success'] = "Registration successful! Please login with your mobile number and PIN.";
+        Router::redirect('/login');
+    }
+
+    private function backToRegisterWithErrors(string $message): void {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        $_SESSION['error'] = $message;
+        Router::redirect('/register');
     }
 }

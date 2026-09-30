@@ -91,4 +91,52 @@ class LoginAttempt {
 
         return $stmt->rowCount();
     }
+
+    public const REGISTRATION_MARKER = '__REGISTER__';
+    public const MAX_REGISTRATION_ATTEMPTS = 5;
+    public const REGISTRATION_WINDOW_MINUTES = 15;
+
+    /**
+     * Count registration attempts within the rolling window for an IP address.
+     */
+    public static function countRecentRegistrationAttempts(?string $ip = null): int {
+        $ipAddress = $ip ?? self::getClientIp();
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM login_attempts 
+                              WHERE mobile = :marker AND ip_address = :ip 
+                              AND attempted_at >= (NOW() - INTERVAL :window MINUTE)");
+        $stmt->bindValue(':marker', self::REGISTRATION_MARKER);
+        $stmt->bindValue(':ip', $ipAddress);
+        $stmt->bindValue(':window', self::REGISTRATION_WINDOW_MINUTES, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return (int)$stmt->fetchColumn();
+    }
+
+    /**
+     * Check if registration is locked for the client IP.
+     */
+    public static function isRegistrationLocked(?string $ip = null): bool {
+        return self::countRecentRegistrationAttempts($ip) >= self::MAX_REGISTRATION_ATTEMPTS;
+    }
+
+    /**
+     * Record a registration attempt for the client IP.
+     */
+    public static function recordRegistrationAttempt(?string $ip = null): void {
+        $ipAddress = $ip ?? self::getClientIp();
+        $db = Database::getConnection();
+
+        $stmt = $db->prepare("INSERT INTO login_attempts (ip_address, mobile, attempted_at) VALUES (:ip, :marker, CURRENT_TIMESTAMP)");
+        $stmt->execute([
+            'ip'     => $ipAddress,
+            'marker' => self::REGISTRATION_MARKER
+        ]);
+
+        // Probabilistic cleanup of expired records (older than 24 hours)
+        if (mt_rand(1, 20) === 1) {
+            self::pruneOldAttempts($db);
+        }
+    }
 }

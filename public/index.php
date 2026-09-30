@@ -25,9 +25,11 @@ $router = new Router();
 // Public Routes
 $router->get('/', 'Faizal\LaundryLms\Controllers\HomeController@index');
 
-// Authentication Routes (Guest only for login)
+// Authentication Routes (Guest only for login & registration)
 $router->get('/login', 'Faizal\LaundryLms\Controllers\AuthController@showLogin', [GuestMiddleware::class]);
 $router->post('/login', 'Faizal\LaundryLms\Controllers\AuthController@login', [CsrfMiddleware::class]);
+$router->get('/register', 'Faizal\LaundryLms\Controllers\AuthController@showRegister', [GuestMiddleware::class]);
+$router->post('/register', 'Faizal\LaundryLms\Controllers\AuthController@register', [GuestMiddleware::class, CsrfMiddleware::class]);
 $router->get('/logout', 'Faizal\LaundryLms\Controllers\AuthController@logout', [AuthMiddleware::class]);
 
 // Admin & Staff Operational Routes (Master Data, Orders, Reports)

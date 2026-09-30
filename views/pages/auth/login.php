@@ -12,6 +12,13 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <?php if (isset($_SESSION['success'])): ?>
+            <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-4 rounded-md">
+                <p class="text-sm text-emerald-700"><?= htmlspecialchars($_SESSION['success']) ?></p>
+            </div>
+            <?php unset($_SESSION['success']); ?>
+        <?php endif; ?>
+
         <form class="mt-8 space-y-6" action="/laundry-lms/login" method="POST">
             <?= \Faizal\LaundryLms\Helpers\Csrf::field() ?>
             <div class="space-y-4">
@@ -29,5 +36,12 @@
                 Sign In securely
             </button>
         </form>
+
+        <div class="text-center pt-4 border-t border-slate-100">
+            <p class="text-sm text-slate-500">
+                New customer? 
+                <a href="/laundry-lms/register" class="font-semibold text-indigo-600 hover:text-indigo-500">Create an account</a>
+            </p>
+        </div>
     </div>
 </div>
