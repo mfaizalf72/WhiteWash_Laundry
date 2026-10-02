@@ -553,9 +553,13 @@ class CustomerPortalController {
         $payments   = Payment::getByOrderId($orderId);
         $settings   = Settings::get();
 
+        $rawPaper = (string)($_GET['paper'] ?? 'a4');
+        $paper    = in_array($rawPaper, ['58', '80'], true) ? $rawPaper : 'a4';
+
         Router::view('orders/print', [
             'title'        => 'Receipt - ' . $order['job_id'],
             'mode'         => 'receipt',
+            'paper'        => $paper,
             'order'        => $order,
             'orderItems'   => $orderItems,
             'history'      => $history,

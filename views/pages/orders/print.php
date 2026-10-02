@@ -10,6 +10,11 @@ use Faizal\LaundryLms\Helpers\Security;
  * - mode = 'job_card' (Staff/Admin operational ticket)
  * - mode = 'receipt' (Customer payment/acknowledgement receipt)
  * 
+ * Paper Formats:
+ * - paper = 'a4' (Default A4 document layout)
+ * - paper = '80' (80mm thermal POS layout, usable print width 72mm)
+ * - paper = '58' (58mm thermal POS layout, usable print width 52mm)
+ * 
  * Strictly Native Printing (window.print() + CSS @media print).
  * Read-only representation.
  */
@@ -17,6 +22,12 @@ use Faizal\LaundryLms\Helpers\Security;
 $isJobCard = ($mode ?? 'job_card') === 'job_card';
 $docHeading = $isJobCard ? 'JOB CARD' : 'CUSTOMER RECEIPT';
 $docSubheading = $isJobCard ? 'Operational Laundry Service Ticket' : 'Official Customer Service Receipt';
+
+// Paper parameter validation (strictly whitelist '58' and '80'; default to 'a4')
+$paper = in_array($paper ?? 'a4', ['58', '80'], true) ? $paper : 'a4';
+$isThermal58 = ($paper === '58');
+$isThermal80 = ($paper === '80');
+$isThermal   = $isThermal58 || $isThermal80;
 
 $totalAmount = (float)($order['total_amount'] ?? 0);
 $amountPaid  = (float)($order['amount_paid'] ?? 0);
@@ -57,6 +68,10 @@ $statusLabels = [
     'cancelled'            => 'Cancelled'
 ];
 $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_', ' ', (string)($order['status'] ?? '')));
+
+$basePrintUrl = $isJobCard
+    ? '/laundry-lms/orders/print?id=' . (int)$order['id']
+    : '/laundry-lms/customer/orders/print?id=' . (int)$order['id'];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -69,6 +84,8 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+            overflow-wrap: break-word;
+            word-break: break-word;
         }
 
         body {
@@ -83,7 +100,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
         .no-print-toolbar {
             background-color: #0f172a;
             color: #f8fafc;
-            padding: 12px 24px;
+            padding: 10px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -91,12 +108,14 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             top: 0;
             z-index: 1000;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            gap: 12px;
+            flex-wrap: wrap;
         }
 
-        .toolbar-left, .toolbar-right {
+        .toolbar-left, .toolbar-center, .toolbar-right {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
         }
 
         .toolbar-title {
@@ -120,7 +139,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 6px;
             font-size: 12px;
             font-weight: 600;
@@ -138,16 +157,33 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             background-color: #475569;
         }
 
-        .btn-print {
+        .btn-format {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #475569;
+        }
+        .btn-format:hover {
+            background-color: #334155;
+            color: #ffffff;
+        }
+        .btn-format-active {
             background-color: #2563eb;
+            color: #ffffff;
+            font-weight: 700;
+            border: 1px solid #3b82f6;
+        }
+
+        .btn-print {
+            background-color: #10b981;
             color: #ffffff;
         }
         .btn-print:hover {
-            background-color: #1d4ed8;
+            background-color: #059669;
         }
 
-        /* Printable Paper Container */
-        .print-container {
+        /* Printable Paper Containers (Screen Previews) */
+        /* A4 Layout Container */
+        .paper-a4 .print-container {
             max-width: 800px;
             margin: 24px auto;
             background: #ffffff;
@@ -157,7 +193,40 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             border: 1px solid #e2e8f0;
         }
 
-        /* Header Layout */
+        /* 80mm Thermal Container: Usable Print Width = 72mm */
+        .paper-80mm .print-container {
+            width: 72mm;
+            max-width: 72mm;
+            margin: 24px auto;
+            background: #ffffff;
+            padding: 3mm;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        /* 58mm Thermal Container: Usable Print Width = 52mm */
+        .paper-58mm .print-container {
+            width: 52mm;
+            max-width: 52mm;
+            margin: 20px auto;
+            background: #ffffff;
+            padding: 2mm;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            border: 1px solid #cbd5e1;
+            font-size: 10px;
+            line-height: 1.25;
+        }
+
+        /* Common Elements */
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+
+        /* A4 Specific Component Styles */
         .doc-header {
             display: flex;
             justify-content: space-between;
@@ -182,9 +251,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             line-height: 1.35;
         }
 
-        .doc-meta {
-            text-align: right;
-        }
+        .doc-meta { text-align: right; }
 
         .doc-title-badge {
             display: inline-block;
@@ -204,10 +271,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             margin-bottom: 4px;
         }
 
-        .doc-meta-item {
-            font-size: 11px;
-            color: #475569;
-        }
+        .doc-meta-item { font-size: 11px; color: #475569; }
 
         .status-pill {
             display: inline-block;
@@ -229,7 +293,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             color: #991b1b;
         }
 
-        /* Cancelled Alert Box */
         .cancelled-banner {
             border: 2px dashed #dc2626;
             background-color: #fef2f2;
@@ -246,9 +309,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             text-transform: uppercase;
             letter-spacing: 0.05em;
             margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
         }
 
         .cancelled-banner-text {
@@ -268,7 +328,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             flex-wrap: wrap;
         }
 
-        /* 2-Column Section: Customer & Schedule */
         .info-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -302,11 +361,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             margin-bottom: 2px;
         }
 
-        .info-card-text {
-            font-size: 11.5px;
-            color: #334155;
-            line-height: 1.4;
-        }
+        .info-card-text { font-size: 11.5px; color: #334155; line-height: 1.4; }
 
         .info-row {
             display: flex;
@@ -314,23 +369,10 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             font-size: 11.5px;
             margin-bottom: 4px;
         }
+        .info-row:last-child { margin-bottom: 0; }
+        .info-label { color: #64748b; font-weight: 500; }
+        .info-val { color: #0f172a; font-weight: 600; text-align: right; }
 
-        .info-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .info-label {
-            color: #64748b;
-            font-weight: 500;
-        }
-
-        .info-val {
-            color: #0f172a;
-            font-weight: 600;
-            text-align: right;
-        }
-
-        /* Section Headings */
         .section-title {
             font-size: 12px;
             font-weight: 700;
@@ -342,7 +384,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             padding-left: 8px;
         }
 
-        /* Order Items Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
@@ -369,26 +410,11 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             vertical-align: top;
         }
 
-        .items-table tr:nth-child(even) td {
-            background-color: #fafbfc;
-        }
+        .items-table tr:nth-child(even) td { background-color: #fafbfc; }
 
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
+        .line-item-name { font-weight: 600; color: #0f172a; }
+        .line-item-note { font-size: 10.5px; color: #64748b; font-style: italic; margin-top: 2px; }
 
-        .line-item-name {
-            font-weight: 600;
-            color: #0f172a;
-        }
-
-        .line-item-note {
-            font-size: 10.5px;
-            color: #64748b;
-            font-style: italic;
-            margin-top: 2px;
-        }
-
-        /* Legacy Order Section */
         .legacy-order-box {
             border: 1px solid #cbd5e1;
             border-radius: 6px;
@@ -417,7 +443,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             line-height: 1.45;
         }
 
-        /* Special Notes & Inspection Details */
         .notes-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -441,13 +466,8 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             margin-bottom: 4px;
         }
 
-        .note-card-body {
-            font-size: 11.5px;
-            color: #334155;
-            white-space: pre-wrap;
-        }
+        .note-card-body { font-size: 11.5px; color: #334155; white-space: pre-wrap; }
 
-        /* Financial & Payments Summary Grid */
         .financial-grid {
             display: grid;
             grid-template-columns: 1.2fr 1fr;
@@ -456,7 +476,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             page-break-inside: avoid;
         }
 
-        /* Payment Ledger Table */
         .payments-table {
             width: 100%;
             border-collapse: collapse;
@@ -480,7 +499,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             color: #334155;
         }
 
-        /* Financial Summary Box */
         .summary-box {
             border: 1px solid #cbd5e1;
             border-radius: 6px;
@@ -514,7 +532,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             color: <?= $balanceDue > 0 ? '#b91c1c' : '#15803d' ?>;
         }
 
-        /* Signature Blocks for Job Card */
         .signatures-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -533,7 +550,6 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             font-weight: 600;
         }
 
-        /* Document Footer */
         .doc-footer {
             border-top: 1px solid #e2e8f0;
             padding-top: 12px;
@@ -544,18 +560,128 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             color: #64748b;
         }
 
+        /* Thermal Layout Common Elements */
+        .thermal-divider {
+            border-top: 1px dashed #000000;
+            margin: 6px 0;
+        }
+        .thermal-header {
+            text-align: center;
+            margin-bottom: 6px;
+        }
+        .thermal-shop-name {
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+        .thermal-shop-sub {
+            font-size: 0.9em;
+            color: #333333;
+            line-height: 1.3;
+        }
+        .thermal-doc-title {
+            font-weight: 800;
+            text-transform: uppercase;
+            margin: 4px 0 2px 0;
+        }
+        .thermal-cancelled-box {
+            border: 1px dashed #000000;
+            padding: 4px 6px;
+            margin: 6px 0;
+            text-align: center;
+        }
+        .thermal-section-title {
+            font-weight: 800;
+            text-transform: uppercase;
+            font-size: 0.95em;
+            margin: 4px 0 2px 0;
+        }
+        .thermal-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        /* 80mm Table Styling */
+        .thermal-80-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10.5px;
+            margin: 4px 0;
+        }
+        .thermal-80-table th {
+            border-bottom: 1px solid #000000;
+            border-top: 1px solid #000000;
+            padding: 3px 2px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 9.5px;
+        }
+        .thermal-80-table td {
+            padding: 3px 2px;
+            vertical-align: top;
+            border-bottom: 1px dotted #cccccc;
+        }
+
+        /* Single Page Sizing Rule Emission */
+<?php if ($paper === '58'): ?>
+        @page {
+            size: 58mm auto;
+            margin: 3mm;
+        }
+<?php elseif ($paper === '80'): ?>
+        @page {
+            size: 80mm auto;
+            margin: 4mm;
+        }
+<?php else: ?>
+        @page {
+            size: A4 portrait;
+            margin: 12mm 15mm;
+        }
+<?php endif; ?>
+
         /* Native Media Print Styles */
         @media print {
             body {
                 background: #ffffff !important;
                 color: #000000 !important;
-                font-size: 11pt;
             }
 
             .no-print-toolbar, .no-print {
                 display: none !important;
             }
 
+<?php if ($paper === '58'): ?>
+            body {
+                font-size: 9.5pt !important;
+                line-height: 1.25 !important;
+            }
+            .print-container {
+                width: 52mm !important;
+                max-width: 52mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+<?php elseif ($paper === '80'): ?>
+            body {
+                font-size: 10pt !important;
+                line-height: 1.3 !important;
+            }
+            .print-container {
+                width: 72mm !important;
+                max-width: 72mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+<?php else: ?>
+            body {
+                font-size: 11pt !important;
+            }
             .print-container {
                 max-width: 100% !important;
                 width: 100% !important;
@@ -591,11 +717,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             .cancelled-banner-title, .cancelled-banner-text, .cancelled-banner-details {
                 color: #000000 !important;
             }
-
-            @page {
-                size: A4 portrait;
-                margin: 12mm 15mm;
-            }
+<?php endif; ?>
 
             .page-break-inside-avoid {
                 page-break-inside: avoid;
@@ -603,7 +725,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
         }
     </style>
 </head>
-<body>
+<body class="paper-<?= $paper === '58' ? '58mm' : ($paper === '80' ? '80mm' : 'a4') ?>">
 
     <!-- Screen-Only Toolbar -->
     <div class="no-print-toolbar no-print">
@@ -614,6 +736,21 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             <span class="toolbar-title"><?= Security::e($docHeading) ?> Preview</span>
             <span class="toolbar-badge"><?= $isJobCard ? 'Staff / Admin' : 'Customer View' ?></span>
         </div>
+
+        <!-- Format Switcher Controls -->
+        <div class="toolbar-center">
+            <span style="font-size: 11px; color: #94a3b8;">Format:</span>
+            <a href="<?= $basePrintUrl ?>" class="btn-toolbar <?= $paper === 'a4' ? 'btn-format-active' : 'btn-format' ?>">
+                A4 Document
+            </a>
+            <a href="<?= $basePrintUrl ?>&paper=80" class="btn-toolbar <?= $paper === '80' ? 'btn-format-active' : 'btn-format' ?>">
+                80mm POS
+            </a>
+            <a href="<?= $basePrintUrl ?>&paper=58" class="btn-toolbar <?= $paper === '58' ? 'btn-format-active' : 'btn-format' ?>">
+                58mm POS
+            </a>
+        </div>
+
         <div class="toolbar-right">
             <button type="button" onclick="window.print()" class="btn-toolbar btn-print">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -628,6 +765,350 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
 
     <!-- Printable Paper Area -->
     <div class="print-container">
+
+<?php if ($paper === '58'): ?>
+        <!-- ====================================================================== -->
+        <!-- 58mm THERMAL COMPACT STACKED LAYOUT (Usable Width = 52mm)               -->
+        <!-- ====================================================================== -->
+
+        <!-- Shop Header -->
+        <div class="thermal-header">
+            <div class="thermal-shop-name" style="font-size: 13px;"><?= Security::e($shopName) ?></div>
+            <?php if (!empty($shopAddress)): ?>
+                <div class="thermal-shop-sub"><?= Security::e($shopAddress) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($shopPhone)): ?>
+                <div class="thermal-shop-sub">Tel: <?= Security::e($shopPhone) ?></div>
+            <?php endif; ?>
+            <div class="thermal-divider"></div>
+            <div class="thermal-doc-title" style="font-size: 11px;"><?= Security::e($docHeading) ?></div>
+            <div style="font-weight: 700; font-family: monospace; font-size: 12px;">#<?= Security::e($order['job_id'] ?? '') ?></div>
+            <div style="font-size: 9px; color: #444;"><?= !empty($order['created_at']) ? date('d M Y, h:i A', strtotime($order['created_at'])) : 'N/A' ?></div>
+            <div style="font-size: 9.5px; font-weight: 700; margin-top: 2px;">Status: <?= Security::e($statusDisplay) ?></div>
+        </div>
+
+        <?php if ($isCancelled): ?>
+            <!-- Prominent Cancelled Alert -->
+            <div class="thermal-cancelled-box">
+                <div style="font-weight: 800; font-size: 11px;">&#9888; ORDER CANCELLED</div>
+                <div style="font-size: 9px; margin-top: 2px;">
+                    <strong>Reason:</strong> <?= Security::e($cancData['reason'] ?? ($rejData['reason'] ?? 'Order cancelled')) ?><br>
+                    <strong>On:</strong> <?= !empty($cancData['cancelled_at']) ? date('d M Y, h:i A', strtotime($cancData['cancelled_at'])) : date('d M Y, h:i A', strtotime($order['updated_at'] ?? 'now')) ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Customer & Schedule Summary -->
+        <div class="thermal-divider"></div>
+        <div style="font-size: 9.5px;">
+            <div><strong>Cust:</strong> <?= Security::e($order['customer_name'] ?? 'Walk-in') ?></div>
+            <div><strong>Mob:</strong> <?= Security::e($order['customer_mobile'] ?? 'N/A') ?></div>
+            <?php if (!empty($order['customer_address'])): ?>
+                <div><strong>Addr:</strong> <?= Security::e($order['customer_address']) ?></div>
+            <?php endif; ?>
+            <div><strong>Pickup:</strong> <?= !empty($order['pickup_date']) ? date('d M Y', strtotime($order['pickup_date'])) : 'N/A' ?></div>
+            <div><strong>Delivery:</strong> <?= !empty($order['delivery_date']) ? date('d M Y', strtotime($order['delivery_date'])) : 'Pending' ?></div>
+            <?php if (!empty($order['staff_name'])): ?>
+                <div><strong>Staff:</strong> <?= Security::e($order['staff_name']) ?></div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Items / Services Breakdown -->
+        <div class="thermal-divider"></div>
+        <div class="thermal-section-title">ITEMS / SERVICES</div>
+
+        <?php if ($hasStructuredItems): ?>
+            <!-- Tiered Stacked Items for 58mm -->
+            <div style="margin-top: 4px;">
+                <?php foreach ($orderItems as $idx => $item): 
+                    $unitLabel = ($item['pricing_type'] ?? '') === 'per_kg' ? 'kg' : 'pc';
+                    $qtyFormatted = ($item['pricing_type'] ?? '') === 'per_kg'
+                        ? number_format((float)($item['quantity'] ?? 0), 2)
+                        : number_format((float)($item['quantity'] ?? 0), 0);
+                ?>
+                    <div style="margin-bottom: 5px; padding-bottom: 3px; <?= $idx < count($orderItems) - 1 ? 'border-bottom: 1px dotted #ccc;' : '' ?>">
+                        <!-- Tier 1: Item Name & Service -->
+                        <div style="font-weight: 700; font-size: 10px;">
+                            <?= Security::e($item['item_name'] ?? 'Item') ?>
+                            <span style="font-weight: normal; font-size: 9px; color: #444;">(<?= Security::e($item['work_type_name'] ?? 'Standard') ?>)</span>
+                        </div>
+                        <?php if (!empty($item['item_notes'])): ?>
+                            <div style="font-size: 8.5px; font-style: italic; color: #555;"><?= Security::e($item['item_notes']) ?></div>
+                        <?php endif; ?>
+                        <!-- Tier 2: Qty x Unit Rate on left, Line Subtotal on right -->
+                        <div style="display: flex; justify-content: space-between; font-size: 9.5px; margin-top: 1px;">
+                            <span><?= $qtyFormatted ?> <?= $unitLabel ?> &times; &#8377;<?= number_format((float)($item['unit_price'] ?? 0), 2) ?></span>
+                            <span style="font-weight: 700;">&#8377;<?= number_format((float)($item['subtotal'] ?? 0), 2) ?></span>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        <?php else: ?>
+            <!-- Legacy Order Representation: Never fabricate structured items! -->
+            <div style="padding: 4px 0; font-size: 9.5px; white-space: pre-wrap;">
+                <?= Security::e(!empty($customerNote) ? $customerNote : (!empty($order['special_instructions']) ? $order['special_instructions'] : 'Standard laundry service request')) ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Financial Summary -->
+        <div class="thermal-divider"></div>
+        <div style="font-size: 9.5px;">
+            <?php if ($hasStructuredItems): ?>
+                <div class="thermal-row">
+                    <span>Subtotal:</span>
+                    <span>&#8377;<?= number_format($itemsSubtotal, 2) ?></span>
+                </div>
+                <?php if ($pickupDeliveryCharge > 0): ?>
+                    <div class="thermal-row">
+                        <span>Delivery Fee:</span>
+                        <span>&#8377;<?= number_format($pickupDeliveryCharge, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+            <div class="thermal-row" style="font-weight: 800; font-size: 11px; border-top: 1px solid #000; margin-top: 3px; padding-top: 3px;">
+                <span>TOTAL:</span>
+                <span>&#8377;<?= number_format($totalAmount, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 600; color: #15803d;">
+                <span>Paid:</span>
+                <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 800; border-top: 1px dashed #ccc; margin-top: 2px; padding-top: 2px; <?= $balanceDue > 0 ? 'color: #b91c1c;' : 'color: #15803d;' ?>">
+                <span>Balance:</span>
+                <span><?= $balanceDue <= 0.001 ? 'PAID IN FULL' : '&#8377;' . number_format($balanceDue, 2) ?></span>
+            </div>
+        </div>
+
+        <?php if (!empty($payments) && is_array($payments)): ?>
+            <!-- Compact Payment Records -->
+            <div class="thermal-divider"></div>
+            <div class="thermal-section-title">PAYMENTS</div>
+            <?php foreach ($payments as $p): ?>
+                <div class="thermal-row" style="font-size: 8.5px; margin-bottom: 2px;">
+                    <span><?= !empty($p['created_at']) ? date('d M', strtotime($p['created_at'])) : '' ?> (<?= strtoupper(Security::e($p['payment_method'] ?? 'cash')) ?>)</span>
+                    <span style="font-weight: 700;">&#8377;<?= number_format((float)($p['amount'] ?? 0), 2) ?></span>
+                </div>
+            <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if ($isJobCard): ?>
+            <!-- Handover Signature Line for Staff Job Card -->
+            <div style="margin-top: 18px; border-top: 1px solid #000; padding-top: 3px; text-align: center; font-size: 8.5px;">
+                Customer Handover Signature
+            </div>
+        <?php else: ?>
+            <!-- Customer Receipt Compact Note -->
+            <div style="margin-top: 12px; text-align: center; font-size: 8.5px; color: #444;">
+                Thank you for your business!
+            </div>
+        <?php endif; ?>
+
+        <!-- Compact Footer -->
+        <div class="thermal-divider"></div>
+        <div style="text-align: center; font-size: 8px; color: #666;">
+            <?= Security::e($shopName) ?> &bull; <?= date('d M Y, h:i A') ?>
+        </div>
+
+<?php elseif ($paper === '80'): ?>
+        <!-- ====================================================================== -->
+        <!-- 80mm THERMAL COMPACT TABLE LAYOUT (Usable Width = 72mm)                 -->
+        <!-- ====================================================================== -->
+
+        <!-- Shop Header -->
+        <div class="thermal-header">
+            <div class="thermal-shop-name" style="font-size: 14px;"><?= Security::e($shopName) ?></div>
+            <?php if (!empty($shopAddress)): ?>
+                <div class="thermal-shop-sub"><?= Security::e($shopAddress) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($shopPhone)): ?>
+                <div class="thermal-shop-sub">Phone: <?= Security::e($shopPhone) ?><?= !empty($shopHours) ? ' &bull; Hours: ' . Security::e($shopHours) : '' ?></div>
+            <?php endif; ?>
+            <div class="thermal-divider"></div>
+            <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                <div class="thermal-doc-title" style="font-size: 12px;"><?= Security::e($docHeading) ?></div>
+                <div style="font-weight: 700; font-family: monospace; font-size: 13px;">#<?= Security::e($order['job_id'] ?? '') ?></div>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 9.5px; color: #444; margin-top: 2px;">
+                <span>Date: <?= !empty($order['created_at']) ? date('d M Y, h:i A', strtotime($order['created_at'])) : 'N/A' ?></span>
+                <span style="font-weight: 700;">Status: <?= Security::e($statusDisplay) ?></span>
+            </div>
+        </div>
+
+        <?php if ($isCancelled): ?>
+            <!-- Prominent Cancelled Alert -->
+            <div class="thermal-cancelled-box">
+                <div style="font-weight: 800; font-size: 12px;">&#9888; ORDER CANCELLED</div>
+                <div style="font-size: 10px; margin-top: 2px;">
+                    <strong>Reason:</strong> <?= Security::e($cancData['reason'] ?? ($rejData['reason'] ?? 'Order cancelled')) ?><br>
+                    <strong>Cancelled On:</strong> <?= !empty($cancData['cancelled_at']) ? date('d M Y, h:i A', strtotime($cancData['cancelled_at'])) : date('d M Y, h:i A', strtotime($order['updated_at'] ?? 'now')) ?>
+                </div>
+            </div>
+        <?php endif; ?>
+
+        <!-- Customer & Operations Details -->
+        <div class="thermal-divider"></div>
+        <div style="font-size: 10px; line-height: 1.4;">
+            <div class="thermal-row">
+                <span><strong>Customer:</strong> <?= Security::e($order['customer_name'] ?? 'Walk-in') ?></span>
+                <span><strong>Mob:</strong> <?= Security::e($order['customer_mobile'] ?? 'N/A') ?></span>
+            </div>
+            <?php if (!empty($order['customer_address'])): ?>
+                <div><strong>Address:</strong> <?= Security::e($order['customer_address']) ?></div>
+            <?php endif; ?>
+            <div class="thermal-row" style="margin-top: 2px;">
+                <span><strong>Pickup:</strong> <?= !empty($order['pickup_date']) ? date('d M Y', strtotime($order['pickup_date'])) : 'N/A' ?></span>
+                <span><strong>Delivery:</strong> <?= !empty($order['delivery_date']) ? date('d M Y', strtotime($order['delivery_date'])) : 'Pending' ?></span>
+            </div>
+            <?php if (!empty($order['staff_name'])): ?>
+                <div class="thermal-row">
+                    <span><strong>Staff:</strong> <?= Security::e($order['staff_name']) ?></span>
+                    <?php if (!empty($inspData['inspected_by_name'])): ?>
+                        <span><strong>Inspected:</strong> <?= Security::e($inspData['inspected_by_name']) ?></span>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Items / Services Breakdown (Compact 4-Column Table) -->
+        <div class="thermal-divider"></div>
+        <div class="thermal-section-title">SERVICE DETAILS & ITEMS</div>
+
+        <?php if ($hasStructuredItems): ?>
+            <table class="thermal-80-table">
+                <thead>
+                    <tr>
+                        <th style="width: 46%; text-align: left;">Item & Service</th>
+                        <th style="width: 14%; text-align: center;">Qty</th>
+                        <th style="width: 20%; text-align: right;">Rate</th>
+                        <th style="width: 20%; text-align: right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($orderItems as $item): 
+                        $unitLabel = ($item['pricing_type'] ?? '') === 'per_kg' ? 'kg' : 'pc';
+                        $qtyFormatted = ($item['pricing_type'] ?? '') === 'per_kg'
+                            ? number_format((float)($item['quantity'] ?? 0), 2)
+                            : number_format((float)($item['quantity'] ?? 0), 0);
+                    ?>
+                        <tr>
+                            <td>
+                                <div style="font-weight: 700;"><?= Security::e($item['item_name'] ?? 'Item') ?></div>
+                                <div style="font-size: 8.5px; color: #555;"><?= Security::e($item['work_type_name'] ?? 'Standard') ?></div>
+                                <?php if (!empty($item['item_notes'])): ?>
+                                    <div style="font-size: 8.5px; font-style: italic; color: #666;"><?= Security::e($item['item_notes']) ?></div>
+                                <?php endif; ?>
+                            </td>
+                            <td class="text-center"><?= $qtyFormatted ?> <?= $unitLabel ?></td>
+                            <td class="text-right">&#8377;<?= number_format((float)($item['unit_price'] ?? 0), 2) ?></td>
+                            <td class="text-right" style="font-weight: 700;">&#8377;<?= number_format((float)($item['subtotal'] ?? 0), 2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php else: ?>
+            <!-- Legacy Order Representation: Never fabricate structured items! -->
+            <div style="padding: 6px 0; font-size: 10px; white-space: pre-wrap;">
+                <strong>Service Description:</strong><br>
+                <?= Security::e(!empty($customerNote) ? $customerNote : (!empty($order['special_instructions']) ? $order['special_instructions'] : 'Standard laundry service request')) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!empty($customerNote) && $hasStructuredItems || !empty($inspData['garment_notes'])): ?>
+            <!-- Optional Inspection / Special Instructions -->
+            <div style="font-size: 9.5px; margin: 4px 0;">
+                <?php if (!empty($customerNote) && $hasStructuredItems): ?>
+                    <div><strong>Instructions:</strong> <?= Security::e($customerNote) ?></div>
+                <?php endif; ?>
+                <?php if (!empty($inspData['garment_notes'])): ?>
+                    <div><strong>Inspection Notes:</strong> <?= Security::e($inspData['garment_notes']) ?></div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Financial Summary -->
+        <div class="thermal-divider"></div>
+        <div style="font-size: 10px;">
+            <?php if ($hasStructuredItems): ?>
+                <div class="thermal-row">
+                    <span>Items Subtotal:</span>
+                    <span>&#8377;<?= number_format($itemsSubtotal, 2) ?></span>
+                </div>
+                <?php if ($pickupDeliveryCharge > 0): ?>
+                    <div class="thermal-row">
+                        <span>Pickup & Delivery Charge:</span>
+                        <span>&#8377;<?= number_format($pickupDeliveryCharge, 2) ?></span>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+            <div class="thermal-row" style="font-weight: 800; font-size: 12px; border-top: 1px solid #000; margin-top: 4px; padding-top: 4px;">
+                <span>TOTAL AMOUNT:</span>
+                <span>&#8377;<?= number_format($totalAmount, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 600; color: #15803d; margin-top: 2px;">
+                <span>Amount Paid:</span>
+                <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 800; font-size: 11px; border-top: 1px dashed #ccc; margin-top: 3px; padding-top: 3px; <?= $balanceDue > 0 ? 'color: #b91c1c;' : 'color: #15803d;' ?>">
+                <span>Balance Due:</span>
+                <span><?= $balanceDue <= 0.001 ? 'PAID IN FULL' : '&#8377;' . number_format($balanceDue, 2) ?></span>
+            </div>
+        </div>
+
+        <?php if (!empty($payments) && is_array($payments)): ?>
+            <!-- Payment History Ledger -->
+            <div class="thermal-divider"></div>
+            <div class="thermal-section-title">PAYMENT HISTORY</div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 2px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid #000;">
+                        <th style="text-align: left; padding: 2px 0;">Date</th>
+                        <th style="text-align: left; padding: 2px 0;">Method</th>
+                        <th style="text-align: right; padding: 2px 0;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($payments as $p): ?>
+                        <tr style="border-bottom: 1px dotted #ddd;">
+                            <td style="padding: 2px 0;"><?= !empty($p['created_at']) ? date('d M, h:i A', strtotime($p['created_at'])) : 'N/A' ?></td>
+                            <td style="padding: 2px 0; text-transform: uppercase;">
+                                <?= Security::e($p['payment_method'] ?? 'cash') ?>
+                                <?= !empty($p['upi_reference']) ? '(' . Security::e($p['upi_reference']) . ')' : '' ?>
+                            </td>
+                            <td style="text-align: right; padding: 2px 0; font-weight: 700;">&#8377;<?= number_format((float)($p['amount'] ?? 0), 2) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <?php if ($isJobCard): ?>
+            <!-- Signature Block for 80mm Job Card -->
+            <div style="display: flex; justify-content: space-between; gap: 16px; margin-top: 24px;">
+                <div style="flex: 1; border-top: 1px solid #000; padding-top: 4px; text-align: center; font-size: 9px;">
+                    Customer Signature
+                </div>
+                <div style="flex: 1; border-top: 1px solid #000; padding-top: 4px; text-align: center; font-size: 9px;">
+                    Staff Signature
+                </div>
+            </div>
+        <?php else: ?>
+            <!-- Customer Receipt Terms Note -->
+            <div style="margin-top: 14px; font-size: 9px; color: #555; text-align: center; line-height: 1.3;">
+                Please report any garment discrepancies within 24 hours of delivery. Thank you for your business!
+            </div>
+        <?php endif; ?>
+
+        <!-- Footer -->
+        <div class="thermal-divider"></div>
+        <div style="display: flex; justify-content: space-between; font-size: 8.5px; color: #666;">
+            <span><?= Security::e($shopName) ?></span>
+            <span>Generated <?= date('d M Y, h:i A') ?></span>
+        </div>
+
+<?php else: ?>
+        <!-- ====================================================================== -->
+        <!-- STANDARD A4 DOCUMENT LAYOUT (100% Unchanged Existing Implementation)    -->
+        <!-- ====================================================================== -->
 
         <!-- Document Header: Shop & Order Meta -->
         <div class="doc-header">
@@ -893,6 +1374,8 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             <div><?= Security::e($shopName) ?> &bull; Generated <?= date('d M Y, h:i A') ?></div>
             <div>Job ID: #<?= Security::e($order['job_id'] ?? '') ?></div>
         </div>
+
+<?php endif; ?>
 
     </div>
 

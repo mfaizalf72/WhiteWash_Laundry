@@ -486,9 +486,13 @@ class OrderController {
         $payments   = Payment::getByOrderId($id);
         $settings   = Settings::get();
 
+        $rawPaper = (string)($_GET['paper'] ?? 'a4');
+        $paper    = in_array($rawPaper, ['58', '80'], true) ? $rawPaper : 'a4';
+
         Router::view('orders/print', [
             'title'        => 'Job Card - ' . $order['job_id'],
             'mode'         => 'job_card',
+            'paper'        => $paper,
             'order'        => $order,
             'orderItems'   => $orderItems,
             'history'      => $history,
