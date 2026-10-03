@@ -11,17 +11,23 @@ $pickupToday  = !empty($pickupToday);
 $deliveryToday= !empty($deliveryToday);
 $paymentDue   = !empty($paymentDue);
 
-// Build filter query string for pagination links
-function buildQueryString(array $override = []): string {
-    $params = $_GET;
-    foreach ($override as $k => $v) {
-        if ($v === null || $v === false || $v === '') {
-            unset($params[$k]);
-        } else {
-            $params[$k] = $v;
+// Build filter query string for pagination links.
+// Strips empty values from the base $_GET before applying overrides so that stale
+// parameters (e.g. &search= or &status=) are not forwarded to pagination URLs.
+// Returns a raw URL query string (not HTML-escaped); callers must use Security::e().
+if (!function_exists('buildQueryString')) {
+    function buildQueryString(array $override = []): string {
+        // Remove empty strings from the current GET params
+        $params = array_filter($_GET, fn($v) => $v !== '');
+        foreach ($override as $k => $v) {
+            if ($v === null || $v === false || $v === '') {
+                unset($params[$k]);
+            } else {
+                $params[$k] = $v;
+            }
         }
+        return http_build_query($params);
     }
-    return http_build_query($params);
 }
 ?>
 
@@ -83,17 +89,17 @@ function buildQueryString(array $override = []): string {
         <div class="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100 text-xs">
             <span class="font-semibold text-slate-500 mr-1">Quick Filters:</span>
             
-            <a href="/laundry-lms/orders?<?= buildQueryString(['pickup_today' => $pickupToday ? null : '1', 'page' => 1]) ?>"
+            <a href="/laundry-lms/orders?<?= Security::e(buildQueryString(['pickup_today' => $pickupToday ? null : '1', 'page' => 1])) ?>"
                class="px-3 py-1 rounded-full border transition-colors <?= $pickupToday ? 'bg-amber-100 border-amber-300 text-amber-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100' ?>">
                 <?= $pickupToday ? '✓ ' : '' ?>Today's Pickups
             </a>
 
-            <a href="/laundry-lms/orders?<?= buildQueryString(['delivery_today' => $deliveryToday ? null : '1', 'page' => 1]) ?>"
+            <a href="/laundry-lms/orders?<?= Security::e(buildQueryString(['delivery_today' => $deliveryToday ? null : '1', 'page' => 1])) ?>"
                class="px-3 py-1 rounded-full border transition-colors <?= $deliveryToday ? 'bg-purple-100 border-purple-300 text-purple-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100' ?>">
                 <?= $deliveryToday ? '✓ ' : '' ?>Today's Deliveries
             </a>
 
-            <a href="/laundry-lms/orders?<?= buildQueryString(['payment_due' => $paymentDue ? null : '1', 'page' => 1]) ?>"
+            <a href="/laundry-lms/orders?<?= Security::e(buildQueryString(['payment_due' => $paymentDue ? null : '1', 'page' => 1])) ?>"
                class="px-3 py-1 rounded-full border transition-colors <?= $paymentDue ? 'bg-rose-100 border-rose-300 text-rose-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100' ?>">
                 <?= $paymentDue ? '✓ ' : '' ?>Payment Due
             </a>
@@ -177,13 +183,13 @@ function buildQueryString(array $override = []): string {
                 
                 <div class="flex items-center space-x-2">
                     <?php if ($page > 1): ?>
-                        <a href="/laundry-lms/orders?<?= buildQueryString(['page' => $page - 1]) ?>" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors">
+                        <a href="/laundry-lms/orders?<?= Security::e(buildQueryString(['page' => $page - 1])) ?>" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors">
                             &larr; Previous
                         </a>
                     <?php endif; ?>
 
                     <?php if ($page < $totalPages): ?>
-                        <a href="/laundry-lms/orders?<?= buildQueryString(['page' => $page + 1]) ?>" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors">
+                        <a href="/laundry-lms/orders?<?= Security::e(buildQueryString(['page' => $page + 1])) ?>" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-700 rounded-lg font-semibold hover:bg-slate-100 transition-colors">
                             Next &rarr;
                         </a>
                     <?php endif; ?>

@@ -38,10 +38,10 @@ class OrderController {
             'title'        => 'Orders Directory - Launder',
             'orders'       => $paginatedData['orders'],
             'totalOrders'  => $paginatedData['total_orders'],
-            'currentPage'  => $paginatedData['page'],
+            'page'         => $paginatedData['page'],
             'totalPages'   => $paginatedData['total_pages'],
-            'currentFilter'=> $status,
-            'searchTerm'   => $search,
+            'status'       => $status,
+            'search'       => $search,
             'pickupToday'  => $pickupToday,
             'deliveryToday'=> $deliveryToday,
             'paymentDue'   => $paymentDue
