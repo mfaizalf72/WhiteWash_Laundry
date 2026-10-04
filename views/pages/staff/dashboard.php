@@ -169,7 +169,7 @@ $paymentDueQueue = $queues['payment_due'] ?? [];
                                     </div>
                                 </td>
                                 <td class="px-3 py-3.5 whitespace-nowrap">
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 capitalize">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold <?= $ord['status'] === 'cancelled' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-blue-100 text-blue-800' ?> capitalize">
                                         <?= Security::e(str_replace('_', ' ', $ord['status'])) ?>
                                     </span>
                                 </td>
