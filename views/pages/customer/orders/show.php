@@ -342,6 +342,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                     </div>
                 </div>
 
+                <?php if ($outstanding > 0 && $order['status'] !== 'cancelled'): ?>
+                    <div class="pt-2">
+                        <button type="button" id="payOnlineBtn" onclick="document.getElementById('payOnlineModal').classList.remove('hidden');" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                            <span>Pay Online (₹<?= number_format($outstanding, 2) ?>)</span>
+                        </button>
+                    </div>
+                <?php endif; ?>
+
                 <!-- Payments Log -->
                 <?php if (!empty($payments)): ?>
                     <div class="mt-4 pt-3 border-t border-slate-200">
@@ -354,6 +363,8 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                                         <span class="text-slate-500 uppercase ml-1">(<?= Security::e($pmt['payment_method']) ?>)</span>
                                         <?php if (!empty($pmt['upi_reference'])): ?>
                                             <span class="text-slate-400 block font-mono">Ref: <?= Security::e($pmt['upi_reference']) ?></span>
+                                        <?php elseif (!empty($pmt['gateway_payment_id'])): ?>
+                                            <span class="text-slate-400 block font-mono">Ref: <?= Security::e($pmt['gateway_payment_id']) ?> (<?= Security::e(strtoupper($pmt['gateway'] ?? 'online')) ?>)</span>
                                         <?php endif; ?>
                                     </div>
                                     <span class="text-slate-400"><?= date('M d, Y h:i A', strtotime($pmt['created_at'])) ?></span>
@@ -463,5 +474,334 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
             </form>
         </div>
     </div>
+
+    <?php if ($outstanding > 0 && $order['status'] !== 'cancelled'): ?>
+    <!-- Online Payment Modal -->
+    <div id="payOnlineModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Pay Outstanding Balance</h3>
+                        <p class="text-[11px] text-slate-500">Order #<?= htmlspecialchars($order['job_id']) ?></p>
+                    </div>
+                </div>
+                <button type="button" onclick="closePayModal()" class="text-slate-400 hover:text-slate-600 text-lg">&times;</button>
+            </div>
+
+            <!-- Error Banner -->
+            <div id="payModalError" class="hidden bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-xl"></div>
+
+            <!-- Financial Summary Box -->
+            <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-1.5">
+                <div class="flex justify-between text-slate-600">
+                    <span>Order Total:</span>
+                    <span class="font-mono font-medium text-slate-800">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
+                </div>
+                <div class="flex justify-between text-slate-600">
+                    <span>Amount Paid:</span>
+                    <span class="font-mono font-medium text-emerald-600">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
+                </div>
+                <div class="flex justify-between text-slate-800 font-bold border-t border-slate-200 pt-1.5 text-sm">
+                    <span>Outstanding Balance:</span>
+                    <span class="font-mono text-rose-600">₹<?= number_format($outstanding, 2) ?></span>
+                </div>
+            </div>
+
+            <!-- Amount Options -->
+            <div class="space-y-3">
+                <label class="block text-xs font-semibold text-slate-700">Select Amount to Pay</label>
+
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                        <input type="radio" name="pay_amount_type" id="pay_full_radio" value="full" checked onchange="toggleCustomAmount(false)" class="text-emerald-600 focus:ring-emerald-500">
+                        <div class="text-xs">
+                            <span class="font-bold text-slate-800 block">Pay Full Balance</span>
+                            <span class="text-slate-500 font-mono">₹<?= number_format($outstanding, 2) ?></span>
+                        </div>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                        <input type="radio" name="pay_amount_type" id="pay_custom_radio" value="custom" onchange="toggleCustomAmount(true)" class="text-emerald-600 focus:ring-emerald-500">
+                        <div class="text-xs flex-1">
+                            <span class="font-bold text-slate-800 block">Pay Custom Amount</span>
+                            <span class="text-slate-500">Min ₹1.00 &bull; Max ₹<?= number_format($outstanding, 2) ?></span>
+                        </div>
+                    </label>
+
+                    <div id="custom_amount_container" class="hidden pl-7 pr-2">
+                        <div class="relative rounded-xl shadow-sm">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 font-mono text-xs">
+                                ₹
+                            </div>
+                            <input type="number" id="custom_amount_input" step="0.01" min="1.00" max="<?= sprintf('%.2f', $outstanding) ?>" value="<?= sprintf('%.2f', $outstanding) ?>" class="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 font-mono" placeholder="Enter amount">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if (($gatewayDriver ?? '') === 'mock'): ?>
+            <!-- Mock Gateway Sandbox Badge -->
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-1">
+                <div class="flex items-center gap-1.5 font-bold text-amber-800">
+                    <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span>MOCK PAYMENT GATEWAY (Local Sandbox)</span>
+                </div>
+                <p class="text-[11px] text-amber-700">
+                    No real bank or card is charged. Tests the exact server-side HMAC verification, balance recalculation, and idempotency logic.
+                </p>
+            </div>
+
+            <!-- Mock Actions -->
+            <div class="space-y-2 pt-1">
+                <button type="button" id="mockSuccessBtn" onclick="processMockPayment('success')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span>Simulate Payment Success</span>
+                </button>
+
+                <button type="button" id="mockFailBtn" onclick="processMockPayment('failure')" class="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-2 px-4 rounded-xl text-xs border border-rose-200 transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <span>Simulate Payment Failure</span>
+                </button>
+
+                <button type="button" onclick="closePayModal()" class="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+                    Cancel
+                </button>
+            </div>
+
+            <?php else: ?>
+            <!-- Live Gateway (Razorpay) Action -->
+            <div class="space-y-2 pt-1">
+                <button type="button" id="razorpayBtn" onclick="processRazorpayPayment()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    <span>Proceed to Secure Checkout</span>
+                </button>
+
+                <button type="button" onclick="closePayModal()" class="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-700">
+                    Cancel
+                </button>
+            </div>
+            <?php endif; ?>
+
+            <!-- Loading Spinner -->
+            <div id="payModalLoading" class="hidden text-center py-4 space-y-2">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+                <p class="text-xs text-slate-600 font-medium" id="payModalLoadingText">Connecting to secure gateway...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden form for CSRF and submission reference -->
+    <form id="hiddenPaymentForm" class="hidden">
+        <?= Csrf::field() ?>
+        <input type="hidden" id="pay_order_id" value="<?= (int)$order['id'] ?>">
+        <input type="hidden" id="pay_max_outstanding" value="<?= sprintf('%.2f', $outstanding) ?>">
+    </form>
+
+    <script>
+    function toggleCustomAmount(isCustom) {
+        const container = document.getElementById('custom_amount_container');
+        if (isCustom) {
+            container.classList.remove('hidden');
+            document.getElementById('custom_amount_input').focus();
+        } else {
+            container.classList.add('hidden');
+        }
+    }
+
+    function closePayModal() {
+        document.getElementById('payOnlineModal').classList.add('hidden');
+        document.getElementById('payModalError').classList.add('hidden');
+        document.getElementById('payModalLoading').classList.add('hidden');
+    }
+
+    function getSelectedAmount() {
+        const isCustom = document.getElementById('pay_custom_radio').checked;
+        const maxOut = parseFloat(document.getElementById('pay_max_outstanding').value);
+        if (isCustom) {
+            const raw = parseFloat(document.getElementById('custom_amount_input').value);
+            if (isNaN(raw) || raw < 1.00) {
+                throw new Error("Minimum payment amount is ₹1.00");
+            }
+            if (raw > maxOut + 0.001) {
+                throw new Error("Amount cannot exceed outstanding balance of ₹" + maxOut.toFixed(2));
+            }
+            return raw.toFixed(2);
+        }
+        return maxOut.toFixed(2);
+    }
+
+    function showPayError(msg) {
+        const el = document.getElementById('payModalError');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+        document.getElementById('payModalLoading').classList.add('hidden');
+    }
+
+    function setPayLoading(loading, text = 'Processing payment...') {
+        const loadingEl = document.getElementById('payModalLoading');
+        const textEl = document.getElementById('payModalLoadingText');
+        textEl.textContent = text;
+        if (loading) {
+            loadingEl.classList.remove('hidden');
+            document.getElementById('payModalError').classList.add('hidden');
+        } else {
+            loadingEl.classList.add('hidden');
+        }
+    }
+
+    async function processMockPayment(mode) {
+        try {
+            const amount = getSelectedAmount();
+            const orderId = document.getElementById('pay_order_id').value;
+            const csrfInput = document.querySelector('#hiddenPaymentForm input[name="_csrf_token"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+
+            setPayLoading(true, "Creating payment session...");
+
+            // Step 1: Initiate
+            const initFormData = new URLSearchParams();
+            initFormData.append('_csrf_token', csrfToken);
+            initFormData.append('order_id', orderId);
+            initFormData.append('amount', amount);
+            initFormData.append('is_ajax', '1');
+
+            const initRes = await fetch('/laundry-lms/customer/orders/pay/initiate', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: initFormData
+            });
+
+            const initData = await initRes.json();
+            if (!initRes.ok || !initData.success) {
+                throw new Error(initData.message || 'Failed to initiate payment session.');
+            }
+
+            setPayLoading(true, "Verifying transaction signature...");
+
+            // Step 2: Verify
+            const verifyFormData = new URLSearchParams();
+            verifyFormData.append('_csrf_token', csrfToken);
+            verifyFormData.append('order_id', orderId);
+            verifyFormData.append('gateway_order_id', initData.gateway_order_id);
+            verifyFormData.append('gateway_payment_id', initData.gateway_payment_id);
+            verifyFormData.append('is_ajax', '1');
+
+            if (mode === 'failure') {
+                verifyFormData.append('mock_status', 'failed');
+                verifyFormData.append('gateway_signature', 'tampered_mock_signature');
+            } else {
+                verifyFormData.append('mock_status', 'success');
+                verifyFormData.append('gateway_signature', initData.gateway_signature);
+            }
+
+            const verifyRes = await fetch('/laundry-lms/customer/orders/pay/verify', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: verifyFormData
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok || !verifyData.success) {
+                throw new Error(verifyData.message || 'Payment verification failed.');
+            }
+
+            // Success -> redirect
+            window.location.href = verifyData.redirect_url || ('/laundry-lms/customer/orders/show?id=' + orderId);
+        } catch (err) {
+            showPayError(err.message || 'An unexpected error occurred during payment processing.');
+        }
+    }
+
+    async function processRazorpayPayment() {
+        try {
+            const amount = getSelectedAmount();
+            const orderId = document.getElementById('pay_order_id').value;
+            const csrfInput = document.querySelector('#hiddenPaymentForm input[name="_csrf_token"]');
+            const csrfToken = csrfInput ? csrfInput.value : '';
+
+            setPayLoading(true, "Initiating Razorpay order...");
+
+            const initFormData = new URLSearchParams();
+            initFormData.append('_csrf_token', csrfToken);
+            initFormData.append('order_id', orderId);
+            initFormData.append('amount', amount);
+            initFormData.append('is_ajax', '1');
+
+            const initRes = await fetch('/laundry-lms/customer/orders/pay/initiate', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                body: initFormData
+            });
+
+            const initData = await initRes.json();
+            if (!initRes.ok || !initData.success) {
+                throw new Error(initData.message || 'Failed to initiate Razorpay order.');
+            }
+
+            if (!window.Razorpay) {
+                // Dynamically load script
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => openRazorpayModal(initData, csrfToken, orderId);
+                script.onerror = () => showPayError("Failed to load Razorpay SDK. Please check your Internet connection.");
+                document.body.appendChild(script);
+            } else {
+                openRazorpayModal(initData, csrfToken, orderId);
+            }
+        } catch (err) {
+            showPayError(err.message || 'Error connecting to Razorpay.');
+        }
+    }
+
+    function openRazorpayModal(initData, csrfToken, orderId) {
+        setPayLoading(false);
+        const options = {
+            key: initData.key_id,
+            amount: Math.round(parseFloat(initData.amount) * 100),
+            currency: initData.currency || 'INR',
+            name: 'Laundry LMS',
+            description: 'Order Payment #' + orderId,
+            order_id: initData.gateway_order_id,
+            handler: async function (response) {
+                setPayLoading(true, "Verifying payment with bank...");
+                try {
+                    const verifyFormData = new URLSearchParams();
+                    verifyFormData.append('_csrf_token', csrfToken);
+                    verifyFormData.append('order_id', orderId);
+                    verifyFormData.append('gateway_order_id', response.razorpay_order_id);
+                    verifyFormData.append('gateway_payment_id', response.razorpay_payment_id);
+                    verifyFormData.append('gateway_signature', response.razorpay_signature);
+                    verifyFormData.append('is_ajax', '1');
+
+                    const verifyRes = await fetch('/laundry-lms/customer/orders/pay/verify', {
+                        method: 'POST',
+                        headers: { 'Accept': 'application/json' },
+                        body: verifyFormData
+                    });
+
+                    const verifyData = await verifyRes.json();
+                    if (!verifyRes.ok || !verifyData.success) {
+                        throw new Error(verifyData.message || 'Verification failed.');
+                    }
+                    window.location.href = verifyData.redirect_url || ('/laundry-lms/customer/orders/show?id=' + orderId);
+                } catch (vErr) {
+                    showPayError(vErr.message);
+                }
+            },
+            modal: {
+                ondismiss: function () {
+                    setPayLoading(false);
+                }
+            }
+        };
+        const rzp = new Razorpay(options);
+        rzp.open();
+    }
+    </script>
+    <?php endif; ?>
 
 </div>

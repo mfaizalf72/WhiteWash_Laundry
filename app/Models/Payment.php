@@ -12,10 +12,14 @@ class Payment {
         $db->beginTransaction();
 
         try {
-            $orderId   = (int)($paymentData['order_id'] ?? 0);
-            $method    = trim($paymentData['payment_method'] ?? '');
-            $rawAmount = trim((string)($paymentData['amount'] ?? ''));
-            $upiRef    = trim($paymentData['upi_reference'] ?? '');
+            $orderId          = (int)($paymentData['order_id'] ?? 0);
+            $method           = trim($paymentData['payment_method'] ?? '');
+            $rawAmount        = trim((string)($paymentData['amount'] ?? ''));
+            $upiRef           = trim($paymentData['upi_reference'] ?? '');
+            $gateway          = !empty($paymentData['gateway']) ? trim((string)$paymentData['gateway']) : null;
+            $gatewayOrderId   = !empty($paymentData['gateway_order_id']) ? trim((string)$paymentData['gateway_order_id']) : null;
+            $gatewayPaymentId = !empty($paymentData['gateway_payment_id']) ? trim((string)$paymentData['gateway_payment_id']) : null;
+            $gatewaySignature = !empty($paymentData['gateway_signature']) ? trim((string)$paymentData['gateway_signature']) : null;
 
             // 1. Lock and read target order row
             $stmt = $db->prepare("SELECT id, total_amount, amount_paid, payment_status, status FROM orders WHERE id = :id FOR UPDATE");
@@ -33,15 +37,37 @@ class Payment {
             }
 
             // 2. Validate payment method
-            if (!in_array($method, ['cash', 'upi'], true)) {
+            if (!in_array($method, ['cash', 'upi', 'online'], true)) {
                 $db->rollBack();
-                throw new \InvalidArgumentException("Invalid payment method. Only 'cash' and 'upi' are allowed.");
+                throw new \InvalidArgumentException("Invalid payment method. Only 'cash', 'upi', and 'online' are allowed.");
             }
 
-            // 3. Validate UPI reference
+            // 3. Validate method-specific requirements
             if ($method === 'upi' && empty($upiRef)) {
                 $db->rollBack();
                 throw new \InvalidArgumentException("UPI Reference is required for UPI payments.");
+            }
+
+            if ($method === 'online') {
+                if (empty($gatewayPaymentId)) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Gateway Payment ID is required for online payments.");
+                }
+
+                // Check for duplicate gateway payment (Idempotency)
+                $dupStmt = $db->prepare("SELECT id, order_id, amount FROM payments WHERE gateway_payment_id = :gpid");
+                $dupStmt->execute(['gpid' => $gatewayPaymentId]);
+                $existingPay = $dupStmt->fetch();
+                if ($existingPay) {
+                    $db->commit();
+                    return [
+                        'payment_id'       => (int)$existingPay['id'],
+                        'amount_paid'      => (float)$order['amount_paid'],
+                        'payment_status'   => $order['payment_status'],
+                        'remaining'        => round((float)$order['total_amount'] - (float)$order['amount_paid'], 2),
+                        'already_recorded' => true
+                    ];
+                }
             }
 
             // 4. Validate monetary amount
@@ -66,13 +92,23 @@ class Payment {
             }
 
             // 5. Insert payment record
-            $payStmt = $db->prepare("INSERT INTO payments (order_id, recorded_by, amount, payment_method, upi_reference) VALUES (:order_id, :recorded_by, :amount, :payment_method, :upi_reference)");
+            $payStmt = $db->prepare("INSERT INTO payments (
+                order_id, recorded_by, amount, payment_method, upi_reference,
+                gateway, gateway_order_id, gateway_payment_id, gateway_signature
+            ) VALUES (
+                :order_id, :recorded_by, :amount, :payment_method, :upi_reference,
+                :gateway, :gateway_order_id, :gateway_payment_id, :gateway_signature
+            )");
             $payStmt->execute([
-                'order_id'       => $orderId,
-                'recorded_by'    => $userId,
-                'amount'         => $amount,
-                'payment_method' => $method,
-                'upi_reference'  => ($method === 'upi') ? $upiRef : null
+                'order_id'           => $orderId,
+                'recorded_by'        => $userId,
+                'amount'             => $amount,
+                'payment_method'     => $method,
+                'upi_reference'      => ($method === 'upi') ? $upiRef : null,
+                'gateway'            => $gateway,
+                'gateway_order_id'   => $gatewayOrderId,
+                'gateway_payment_id' => $gatewayPaymentId,
+                'gateway_signature'  => $gatewaySignature
             ]);
             $paymentId = (int)$db->lastInsertId();
 
@@ -98,10 +134,11 @@ class Payment {
             $db->commit();
 
             return [
-                'payment_id'     => $paymentId,
-                'amount_paid'    => $newPaid,
-                'payment_status' => $newStatus,
-                'remaining'      => round($totalAmount - $newPaid, 2)
+                'payment_id'       => $paymentId,
+                'amount_paid'      => $newPaid,
+                'payment_status'   => $newStatus,
+                'remaining'        => round($totalAmount - $newPaid, 2),
+                'already_recorded' => false
             ];
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -122,5 +159,17 @@ class Payment {
         $stmt = $db->prepare($sql);
         $stmt->execute(['order_id' => $orderId]);
         return $stmt->fetchAll();
+    }
+
+    public static function getByGatewayPaymentId(string $gatewayPaymentId): ?array {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("SELECT * FROM payments WHERE gateway_payment_id = :gpid LIMIT 1");
+        $stmt->execute(['gpid' => $gatewayPaymentId]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function isGatewayPaymentProcessed(string $gatewayPaymentId): bool {
+        return self::getByGatewayPaymentId($gatewayPaymentId) !== null;
     }
 }

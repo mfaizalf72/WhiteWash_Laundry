@@ -14,6 +14,7 @@ use Faizal\LaundryLms\Models\Payment;
 use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
+use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
 
 class CustomerPortalController {
 
@@ -81,13 +82,14 @@ class CustomerPortalController {
         $payments   = Payment::getByOrderId($orderId);
 
         Router::view('customer/orders/show', [
-            'title'        => 'Order ' . $order['job_id'] . ' - Launder',
-            'order'        => $order,
-            'orderItems'   => $orderItems,
-            'history'      => $history,
-            'payments'     => $payments,
-            'customerNote' => $extracted['customer_note'],
-            'metadata'     => $extracted['metadata']
+            'title'         => 'Order ' . $order['job_id'] . ' - Launder',
+            'order'         => $order,
+            'orderItems'    => $orderItems,
+            'history'       => $history,
+            'payments'      => $payments,
+            'customerNote'  => $extracted['customer_note'],
+            'metadata'      => $extracted['metadata'],
+            'gatewayDriver' => (getenv('PAYMENT_GATEWAY_DRIVER') ?: 'mock')
         ], 'customer');
     }
 
@@ -569,5 +571,270 @@ class CustomerPortalController {
             'metadata'     => $extracted['metadata'],
             'backUrl'      => '/laundry-lms/customer/orders/show?id=' . $order['id']
         ], 'print');
+    }
+
+    public function initiateOnlinePayment(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $orderId    = (int)($_POST['order_id'] ?? 0);
+
+        $isJson = (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'))
+               || (isset($_SERVER['CONTENT_TYPE']) && str_contains($_SERVER['CONTENT_TYPE'], 'application/json'))
+               || !empty($_POST['is_ajax']);
+
+        if ($orderId <= 0) {
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Invalid order ID specified.']);
+                exit;
+            }
+            $_SESSION['error'] = "Invalid order ID specified.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        // Strict Server-Side Customer Ownership Check via Database
+        $order = Order::findForCustomer($orderId, $customerId);
+        if (!$order) {
+            if ($isJson) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => 'Access denied: You do not own this order.']);
+                exit;
+            }
+            $_SESSION['error'] = "Access denied: You do not own this order.";
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        if ($order['status'] === 'cancelled') {
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Payment cannot be initiated for a cancelled order.']);
+                exit;
+            }
+            $_SESSION['error'] = "Payment cannot be initiated for a cancelled order.";
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        $totalAmount  = round((float)$order['total_amount'], 2);
+        $amountPaid   = round((float)$order['amount_paid'], 2);
+        $outstanding  = round($totalAmount - $amountPaid, 2);
+
+        if ($outstanding <= 0.001) {
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'This order is already fully paid.']);
+                exit;
+            }
+            $_SESSION['error'] = "This order is already fully paid.";
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        // Validate monetary amount requested
+        $rawAmount = trim((string)($_POST['amount'] ?? $outstanding));
+        if (!is_numeric($rawAmount) || (float)$rawAmount < 1.00) {
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => 'Minimum online payment amount is ₹1.00.']);
+                exit;
+            }
+            $_SESSION['error'] = "Minimum online payment amount is ₹1.00.";
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        $amountToPay = round((float)$rawAmount, 2);
+        if ($amountToPay > $outstanding + 0.001) {
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => "Payment amount (₹" . number_format($amountToPay, 2) . ") exceeds outstanding balance (₹" . number_format($outstanding, 2) . ")."]);
+                exit;
+            }
+            $_SESSION['error'] = "Payment amount exceeds outstanding balance.";
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        try {
+            $gateway = PaymentGatewayFactory::create();
+            $gatewayOrder = $gateway->createOrder($orderId, $amountToPay, 'INR', [
+                'order_id'    => (string)$orderId,
+                'customer_id' => (string)$customerId
+            ]);
+
+            // Save pending session context
+            if (!isset($_SESSION['pending_online_payment'])) {
+                $_SESSION['pending_online_payment'] = [];
+            }
+            $_SESSION['pending_online_payment'][$orderId] = [
+                'gateway'          => $gateway->getDriverName(),
+                'gateway_order_id' => $gatewayOrder['gateway_order_id'],
+                'amount'           => $amountToPay,
+                'order_id'         => $orderId,
+                'expires_at'       => time() + 1800 // 30-minute TTL (SEC-P2-02)
+            ];
+
+            if ($isJson) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success'            => true,
+                    'driver'             => $gateway->getDriverName(),
+                    'gateway_order_id'   => $gatewayOrder['gateway_order_id'],
+                    'gateway_payment_id' => $gatewayOrder['gateway_payment_id'] ?? null,
+                    'gateway_signature'  => $gatewayOrder['gateway_signature'] ?? null,
+                    'amount'             => $amountToPay,
+                    'currency'           => $gatewayOrder['currency'] ?? 'INR',
+                    'key_id'             => $gateway->getPublicKey(),
+                    'order_id'           => $orderId
+                ]);
+                exit;
+            }
+
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+        } catch (\Throwable $e) {
+            if ($isJson) {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+                exit;
+            }
+            $_SESSION['error'] = "Payment gateway error: " . $e->getMessage();
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+        }
+    }
+
+    public function verifyOnlinePayment(): void {
+        $customerId       = (int)($_SESSION['user_id'] ?? 0);
+        $orderId          = (int)($_POST['order_id'] ?? 0);
+        $gatewayOrderId   = trim((string)($_POST['gateway_order_id'] ?? ''));
+        $gatewayPaymentId = trim((string)($_POST['gateway_payment_id'] ?? ''));
+        $gatewaySignature = trim((string)($_POST['gateway_signature'] ?? ''));
+        $mockStatus       = trim((string)($_POST['mock_status'] ?? ''));
+
+        $isJson = (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'))
+               || (isset($_SERVER['CONTENT_TYPE']) && str_contains($_SERVER['CONTENT_TYPE'], 'application/json'))
+               || !empty($_POST['is_ajax']);
+
+        if ($orderId <= 0 || empty($gatewayOrderId) || empty($gatewayPaymentId)) {
+            $msg = "Incomplete payment verification payload.";
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit;
+            }
+            $_SESSION['error'] = $msg;
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        // Strict Server-Side Customer Ownership Check via Database
+        $order = Order::findForCustomer($orderId, $customerId);
+        if (!$order) {
+            $msg = "Access denied: You do not own this order.";
+            if ($isJson) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit;
+            }
+            $_SESSION['error'] = $msg;
+            Router::redirect('/customer/orders');
+            return;
+        }
+
+        if ($order['status'] === 'cancelled') {
+            $msg = "Payment verification rejected: Order is cancelled.";
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit;
+            }
+            $_SESSION['error'] = $msg;
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        // Cross-check pending session context
+        $pending = $_SESSION['pending_online_payment'][$orderId] ?? null;
+        if (!$pending || $pending['gateway_order_id'] !== $gatewayOrderId) {
+            $msg = "Invalid or expired payment session context.";
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit;
+            }
+            $_SESSION['error'] = $msg;
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        // Check explicit 30-minute session TTL (SEC-P2-02)
+        if (!isset($pending['expires_at']) || (int)$pending['expires_at'] < time()) {
+            unset($_SESSION['pending_online_payment'][$orderId]);
+            $msg = "Payment session has expired. Please initiate a new payment.";
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => $msg]);
+                exit;
+            }
+            $_SESSION['error'] = $msg;
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+            return;
+        }
+
+        // Amount must be the server-calculated pending amount, NOT a browser-supplied amount
+        $amount = (float)$pending['amount'];
+        $driver = (string)$pending['gateway'];
+
+        try {
+            $gateway = PaymentGatewayFactory::create($driver);
+            $isValid = $gateway->verifySignature([
+                'gateway_order_id'   => $gatewayOrderId,
+                'gateway_payment_id' => $gatewayPaymentId,
+                'gateway_signature'  => $gatewaySignature,
+                'mock_status'        => $mockStatus
+            ]);
+
+            if (!$isValid) {
+                throw new \DomainException("Payment signature verification failed. Untrusted or tampered transaction.");
+            }
+
+            // Record payment through standard financial logic
+            $paymentResult = Payment::create([
+                'order_id'           => $orderId,
+                'payment_method'     => 'online',
+                'amount'             => $amount,
+                'gateway'            => $driver,
+                'gateway_order_id'   => $gatewayOrderId,
+                'gateway_payment_id' => $gatewayPaymentId,
+                'gateway_signature'  => $gatewaySignature
+            ], $customerId);
+
+            // Clear session pending context
+            unset($_SESSION['pending_online_payment'][$orderId]);
+
+            $successMsg = "Online payment of ₹" . number_format($amount, 2) . " processed successfully!";
+            $_SESSION['success'] = $successMsg;
+
+            if ($isJson) {
+                header('Content-Type: application/json');
+                echo json_encode([
+                    'success'      => true,
+                    'message'      => $successMsg,
+                    'redirect_url' => '/laundry-lms/customer/orders/show?id=' . $orderId
+                ]);
+                exit;
+            }
+
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+        } catch (\Throwable $e) {
+            $errMsg = "Payment verification error: " . $e->getMessage();
+            if ($isJson) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'message' => $errMsg]);
+                exit;
+            }
+            $_SESSION['error'] = $errMsg;
+            Router::redirect('/customer/orders/show?id=' . $orderId);
+        }
     }
 }

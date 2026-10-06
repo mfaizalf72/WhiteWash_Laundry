@@ -67,6 +67,8 @@ $router->post('/customer/orders/approve', 'Faizal\LaundryLms\Controllers\Custome
 $router->post('/customer/orders/reject-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@rejectPrice', $customerAuthCsrf);
 $router->post('/customer/orders/cancel', 'Faizal\LaundryLms\Controllers\CustomerPortalController@cancelOrder', $customerAuthCsrf);
 $router->post('/customer/orders/reschedule', 'Faizal\LaundryLms\Controllers\CustomerPortalController@reschedule', $customerAuthCsrf);
+$router->post('/customer/orders/pay/initiate', 'Faizal\LaundryLms\Controllers\CustomerPortalController@initiateOnlinePayment', $customerAuthCsrf);
+$router->post('/customer/orders/pay/verify', 'Faizal\LaundryLms\Controllers\CustomerPortalController@verifyOnlinePayment', $customerAuthCsrf);
 $router->get('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@createOrderForm', $customerAuth);
 $router->post('/customer/orders/create', 'Faizal\LaundryLms\Controllers\CustomerPortalController@storeOrder', $customerAuthCsrf);
 $router->get('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@profile', $customerAuth);
@@ -127,5 +129,8 @@ $router->post('/admin/staff/toggle-status', 'Faizal\LaundryLms\Controllers\Admin
 // Admin Settings Route (Admin Only)
 $router->get('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@index', $adminOnlyAuth);
 $router->post('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@update', $adminOnlyAuthCsrf);
+
+// Payment Webhook Route (Server-to-Server, cryptographically verified)
+$router->post('/api/payment/webhook', 'Faizal\LaundryLms\Controllers\PaymentWebhookController@handle');
 
 $router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
