@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Faizal\LaundryLms\Models;
 
 use Faizal\LaundryLms\Core\Database;
+use Faizal\LaundryLms\Services\Notification\NotificationService;
 use PDO;
 
 class Payment {
@@ -22,7 +23,7 @@ class Payment {
             $gatewaySignature = !empty($paymentData['gateway_signature']) ? trim((string)$paymentData['gateway_signature']) : null;
 
             // 1. Lock and read target order row
-            $stmt = $db->prepare("SELECT id, total_amount, amount_paid, payment_status, status FROM orders WHERE id = :id FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, job_id, customer_id, total_amount, amount_paid, payment_status, status FROM orders WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $orderId]);
             $order = $stmt->fetch();
 
@@ -132,6 +133,21 @@ class Payment {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for payment recorded
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyPaymentRecorded(
+                    $paymentId,
+                    $orderId,
+                    (int)$order['customer_id'],
+                    $orderNum,
+                    $amount,
+                    $method
+                );
+            } catch (\Throwable $ne) {
+                error_log("Payment recorded notification failed for payment #{$paymentId}: " . $ne->getMessage());
+            }
 
             return [
                 'payment_id'       => $paymentId,

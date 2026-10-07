@@ -1,5 +1,9 @@
 <?php
 use Faizal\LaundryLms\Helpers\Security;
+use Faizal\LaundryLms\Models\Notification;
+
+$navCustomerId = (int)($_SESSION['user_id'] ?? 0);
+$unreadNavCount = $navCustomerId > 0 ? Notification::getUnreadCount($navCustomerId) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,6 +39,17 @@ use Faizal\LaundryLms\Helpers\Security;
                     <a href="/laundry-lms/customer/orders/create" class="px-3 py-2 rounded-md text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors shadow-sm">
                         + Request Pickup
                     </a>
+                    <a href="/laundry-lms/customer/notifications" class="relative px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors inline-flex items-center space-x-1.5">
+                        <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                        </svg>
+                        <span>Notifications</span>
+                        <?php if ($unreadNavCount > 0): ?>
+                            <span class="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-rose-600 rounded-full">
+                                <?= $unreadNavCount > 99 ? '99+' : $unreadNavCount ?>
+                            </span>
+                        <?php endif; ?>
+                    </a>
                     <a href="/laundry-lms/customer/profile" class="px-3 py-2 rounded-md text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
                         Profile
                     </a>
@@ -56,6 +71,14 @@ use Faizal\LaundryLms\Helpers\Security;
             <a href="/laundry-lms/customer/dashboard" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:text-white whitespace-nowrap">Dashboard</a>
             <a href="/laundry-lms/customer/orders" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:text-white whitespace-nowrap">My Orders</a>
             <a href="/laundry-lms/customer/orders/create" class="px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white whitespace-nowrap">+ Pickup Request</a>
+            <a href="/laundry-lms/customer/notifications" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:text-white whitespace-nowrap inline-flex items-center space-x-1">
+                <span>Notifications</span>
+                <?php if ($unreadNavCount > 0): ?>
+                    <span class="inline-flex items-center justify-center px-1.5 py-0.2 text-[10px] font-bold text-white bg-rose-600 rounded-full">
+                        <?= $unreadNavCount > 99 ? '99+' : $unreadNavCount ?>
+                    </span>
+                <?php endif; ?>
+            </a>
             <a href="/laundry-lms/customer/profile" class="px-3 py-1.5 rounded-md text-xs font-medium text-slate-300 hover:text-white whitespace-nowrap">Profile</a>
             <a href="/laundry-lms/logout" class="px-3 py-1.5 rounded-md text-xs font-medium text-red-400 whitespace-nowrap">Logout</a>
         </div>

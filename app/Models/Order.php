@@ -9,6 +9,7 @@ use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\LaundryItem;
 use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
+use Faizal\LaundryLms\Services\Notification\NotificationService;
 use PDO;
 
 class Order {
@@ -95,6 +96,14 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for new order
+            try {
+                NotificationService::notifyOrderCreated($orderId, (int)$orderData['customer_id'], (string)$jobId);
+            } catch (\Throwable $ne) {
+                error_log("Order created notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return $orderId;
         } catch (\Throwable $e) {
             $db->rollBack();
@@ -257,7 +266,7 @@ class Order {
 
         try {
             // Lock target row during status update
-            $stmt = $db->prepare("SELECT id, status, total_amount, amount_paid, payment_status FROM orders WHERE id = :id FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, job_id, customer_id, status, total_amount, amount_paid, payment_status FROM orders WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $orderId]);
             $order = $stmt->fetch();
 
@@ -307,6 +316,15 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification on status transition
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, (int)$order['customer_id'], $orderNum, $requestedNewStatus);
+            } catch (\Throwable $ne) {
+                error_log("Order status notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -554,6 +572,15 @@ class Order {
             }
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for inspection completed
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, (int)$order['customer_id'], $orderNum, 'inspection_completed');
+            } catch (\Throwable $ne) {
+                error_log("Inspection completed notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -620,6 +647,15 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for price confirmed
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, $customerId, $orderNum, 'price_confirmed');
+            } catch (\Throwable $ne) {
+                error_log("Price confirmed notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -680,6 +716,15 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for price confirmed (admin override)
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, (int)$order['customer_id'], $orderNum, 'price_confirmed');
+            } catch (\Throwable $ne) {
+                error_log("Price confirmed (override) notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -772,6 +817,15 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for order cancelled
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, (int)$order['customer_id'], $orderNum, 'cancelled', $trimmedReason);
+            } catch (\Throwable $ne) {
+                error_log("Order cancelled notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {
@@ -868,6 +922,15 @@ class Order {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for price rejection cancellation
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyOrderStatusUpdated($orderId, $customerId, $orderNum, 'cancelled', $trimmedReason);
+            } catch (\Throwable $ne) {
+                error_log("Order rejected/cancelled notification failed for order #{$orderId}: " . $ne->getMessage());
+            }
+
             return true;
         } catch (\Throwable $e) {
             if ($db->inTransaction()) {

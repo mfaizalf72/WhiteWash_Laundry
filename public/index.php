@@ -74,6 +74,9 @@ $router->post('/customer/orders/create', 'Faizal\LaundryLms\Controllers\Customer
 $router->get('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@profile', $customerAuth);
 $router->post('/customer/profile', 'Faizal\LaundryLms\Controllers\CustomerPortalController@updateProfile', $customerAuthCsrf);
 $router->post('/customer/profile/pin', 'Faizal\LaundryLms\Controllers\CustomerPortalController@changePin', $customerAuthCsrf);
+$router->get('/customer/notifications', 'Faizal\LaundryLms\Controllers\CustomerPortalController@notifications', $customerAuth);
+$router->post('/customer/notifications/read', 'Faizal\LaundryLms\Controllers\CustomerPortalController@markNotificationRead', $customerAuthCsrf);
+$router->post('/customer/notifications/read-all', 'Faizal\LaundryLms\Controllers\CustomerPortalController@markAllNotificationsRead', $customerAuthCsrf);
 
 // Laundry Items (Admin & Staff)
 $router->get('/items', 'Faizal\LaundryLms\Controllers\LaundryItemController@index', $authRole);

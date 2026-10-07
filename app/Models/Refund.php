@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Faizal\LaundryLms\Models;
 
 use Faizal\LaundryLms\Core\Database;
+use Faizal\LaundryLms\Services\Notification\NotificationService;
 use PDO;
 
 class Refund {
@@ -210,7 +211,7 @@ class Refund {
             }
 
             $orderId = (int)$refund['order_id'];
-            $ordStmt = $db->prepare("SELECT id, total_amount, amount_paid, payment_status FROM orders WHERE id = :id FOR UPDATE");
+            $ordStmt = $db->prepare("SELECT id, job_id, customer_id, total_amount, amount_paid, payment_status FROM orders WHERE id = :id FOR UPDATE");
             $ordStmt->execute(['id' => $orderId]);
             $order = $ordStmt->fetch();
 
@@ -257,6 +258,20 @@ class Refund {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for refund processed
+            try {
+                $orderNum = !empty($order['job_id']) ? (string)$order['job_id'] : ('#' . $orderId);
+                NotificationService::notifyRefundProcessed(
+                    $refundId,
+                    $orderId,
+                    (int)$order['customer_id'],
+                    $orderNum,
+                    (float)$refund['amount']
+                );
+            } catch (\Throwable $ne) {
+                error_log("Refund processed notification failed for refund #{$refundId}: " . $ne->getMessage());
+            }
 
             $refund['status']            = 'processed';
             $refund['gateway_refund_id'] = $gatewayRefundId;
@@ -316,6 +331,27 @@ class Refund {
             ]);
 
             $db->commit();
+
+            // Phase 14A: Automated customer notification for refund failed
+            try {
+                $orderId = (int)$refund['order_id'];
+                $ordStmt = $db->prepare("SELECT customer_id, job_id FROM orders WHERE id = :id LIMIT 1");
+                $ordStmt->execute(['id' => $orderId]);
+                $orderRow = $ordStmt->fetch(PDO::FETCH_ASSOC);
+                if ($orderRow) {
+                    $orderNum = !empty($orderRow['job_id']) ? (string)$orderRow['job_id'] : ('#' . $orderId);
+                    NotificationService::notifyRefundFailed(
+                        $refundId,
+                        $orderId,
+                        (int)$orderRow['customer_id'],
+                        $orderNum,
+                        (float)$refund['amount'],
+                        $cleanError
+                    );
+                }
+            } catch (\Throwable $ne) {
+                error_log("Refund failed notification failed for refund #{$refundId}: " . $ne->getMessage());
+            }
 
             $refund['status']        = 'failed';
             $refund['gateway_error'] = $cleanError;

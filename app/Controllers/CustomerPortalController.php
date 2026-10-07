@@ -13,6 +13,7 @@ use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
 use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
+use Faizal\LaundryLms\Models\Notification;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
@@ -845,5 +846,78 @@ class CustomerPortalController {
             $_SESSION['error'] = $errMsg;
             Router::redirect('/customer/orders/show?id=' . $orderId);
         }
+    }
+
+    /**
+     * Customer notifications index page.
+     */
+    public function notifications(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $customer = Customer::find($customerId);
+
+        if (!$customer) {
+            $_SESSION['error'] = "Customer profile not found.";
+            Router::redirect('/logout');
+            return;
+        }
+
+        $page = max(1, (int)($_GET['page'] ?? 1));
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        $notifications = Notification::getForUser($customerId, $limit, $offset);
+        $unreadCount = Notification::getUnreadCount($customerId);
+
+        Router::view('customer/notifications/index', [
+            'title'         => 'Notifications - Launder',
+            'customer'      => $customer,
+            'notifications' => $notifications,
+            'unreadCount'   => $unreadCount,
+            'page'          => $page,
+        ], 'customer');
+    }
+
+    /**
+     * Mark a single notification as read for authenticated customer.
+     */
+    public function markNotificationRead(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $notificationId = (int)($_POST['notification_id'] ?? ($_POST['id'] ?? 0));
+
+        if ($customerId <= 0) {
+            Router::redirect('/login');
+            return;
+        }
+
+        if ($notificationId > 0) {
+            Notification::markAsRead($notificationId, $customerId);
+        }
+
+        $returnUrl = !empty($_POST['return_url']) ? trim((string)$_POST['return_url']) : '/customer/notifications';
+        if (!str_starts_with($returnUrl, '/customer/')) {
+            $returnUrl = '/customer/notifications';
+        }
+
+        $_SESSION['success'] = "Notification marked as read.";
+        Router::redirect($returnUrl);
+    }
+
+    /**
+     * Mark all notifications as read for authenticated customer.
+     */
+    public function markAllNotificationsRead(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+
+        if ($customerId <= 0) {
+            Router::redirect('/login');
+            return;
+        }
+
+        $count = Notification::markAllAsRead($customerId);
+        $_SESSION['success'] = $count > 0
+            ? "All ({$count}) notifications marked as read."
+            : "All notifications are already marked as read.";
+
+        Router::redirect('/customer/notifications');
     }
 }
