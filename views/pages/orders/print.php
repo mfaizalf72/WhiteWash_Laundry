@@ -29,9 +29,11 @@ $isThermal58 = ($paper === '58');
 $isThermal80 = ($paper === '80');
 $isThermal   = $isThermal58 || $isThermal80;
 
-$totalAmount = (float)($order['total_amount'] ?? 0);
-$amountPaid  = (float)($order['amount_paid'] ?? 0);
-$balanceDue  = max(0.0, round($totalAmount - $amountPaid, 2));
+$totalAmount   = (float)($order['total_amount'] ?? 0);
+$amountPaid    = (float)($order['amount_paid'] ?? 0);
+$totalRefunded = (float)($totalRefunded ?? (\Faizal\LaundryLms\Models\Refund::getTotalRefundedByOrderId((int)$order['id'])));
+$refunds       = $refunds ?? (\Faizal\LaundryLms\Models\Refund::getByOrderId((int)$order['id']));
+$balanceDue    = max(0.0, round($totalAmount - $amountPaid, 2));
 
 $hasStructuredItems = !empty($orderItems) && is_array($orderItems);
 $itemsSubtotal = 0.0;
@@ -869,10 +871,21 @@ $basePrintUrl = $isJobCard
                 <span>TOTAL:</span>
                 <span>&#8377;<?= number_format($totalAmount, 2) ?></span>
             </div>
+            <?php if (!empty($totalRefunded) && $totalRefunded > 0): ?>
+            <div class="thermal-row" style="font-weight: 600; color: #b91c1c;">
+                <span>Refunded:</span>
+                <span>-&#8377;<?= number_format($totalRefunded, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 600; color: #15803d;">
+                <span>Net Paid:</span>
+                <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
+            </div>
+            <?php else: ?>
             <div class="thermal-row" style="font-weight: 600; color: #15803d;">
                 <span>Paid:</span>
                 <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
             </div>
+            <?php endif; ?>
             <div class="thermal-row" style="font-weight: 800; border-top: 1px dashed #ccc; margin-top: 2px; padding-top: 2px; <?= $balanceDue > 0 ? 'color: #b91c1c;' : 'color: #15803d;' ?>">
                 <span>Balance:</span>
                 <span><?= $balanceDue <= 0.001 ? 'PAID IN FULL' : '&#8377;' . number_format($balanceDue, 2) ?></span>
@@ -889,6 +902,23 @@ $basePrintUrl = $isJobCard
                     <span style="font-weight: 700;">&#8377;<?= number_format((float)($p['amount'] ?? 0), 2) ?></span>
                 </div>
             <?php endforeach; ?>
+        <?php endif; ?>
+
+        <?php if (!empty($refunds) && is_array($refunds)): ?>
+            <!-- Compact Refund Records -->
+            <?php $hasProcessedRefunds = false; foreach ($refunds as $rf) { if ($rf['status'] === 'processed') { $hasProcessedRefunds = true; break; } } ?>
+            <?php if ($hasProcessedRefunds): ?>
+                <div class="thermal-divider"></div>
+                <div class="thermal-section-title" style="color: #b91c1c;">REFUNDS</div>
+                <?php foreach ($refunds as $rf): ?>
+                    <?php if ($rf['status'] === 'processed'): ?>
+                        <div class="thermal-row" style="font-size: 8.5px; margin-bottom: 2px; color: #b91c1c;">
+                            <span><?= !empty($rf['created_at']) ? date('d M', strtotime($rf['created_at'])) : '' ?> (REFUND)</span>
+                            <span style="font-weight: 700;">-&#8377;<?= number_format((float)($rf['amount'] ?? 0), 2) ?></span>
+                        </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ($isJobCard): ?>
@@ -1044,10 +1074,21 @@ $basePrintUrl = $isJobCard
                 <span>TOTAL AMOUNT:</span>
                 <span>&#8377;<?= number_format($totalAmount, 2) ?></span>
             </div>
+            <?php if (!empty($totalRefunded) && $totalRefunded > 0): ?>
+            <div class="thermal-row" style="font-weight: 600; color: #b91c1c; margin-top: 2px;">
+                <span>Total Refunded:</span>
+                <span>-&#8377;<?= number_format($totalRefunded, 2) ?></span>
+            </div>
+            <div class="thermal-row" style="font-weight: 600; color: #15803d; margin-top: 2px;">
+                <span>Net Paid:</span>
+                <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
+            </div>
+            <?php else: ?>
             <div class="thermal-row" style="font-weight: 600; color: #15803d; margin-top: 2px;">
                 <span>Amount Paid:</span>
                 <span>&#8377;<?= number_format($amountPaid, 2) ?></span>
             </div>
+            <?php endif; ?>
             <div class="thermal-row" style="font-weight: 800; font-size: 11px; border-top: 1px dashed #ccc; margin-top: 3px; padding-top: 3px; <?= $balanceDue > 0 ? 'color: #b91c1c;' : 'color: #15803d;' ?>">
                 <span>Balance Due:</span>
                 <span><?= $balanceDue <= 0.001 ? 'PAID IN FULL' : '&#8377;' . number_format($balanceDue, 2) ?></span>
@@ -1079,6 +1120,28 @@ $basePrintUrl = $isJobCard
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        <?php endif; ?>
+
+        <?php if (!empty($refunds) && is_array($refunds)): ?>
+            <!-- Refund History Ledger -->
+            <?php $hasProcessed80 = false; foreach ($refunds as $rf) { if ($rf['status'] === 'processed') { $hasProcessed80 = true; break; } } ?>
+            <?php if ($hasProcessed80): ?>
+                <div class="thermal-divider"></div>
+                <div class="thermal-section-title" style="color: #b91c1c;">REFUNDS</div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; margin-top: 2px;">
+                    <tbody>
+                        <?php foreach ($refunds as $rf): ?>
+                            <?php if ($rf['status'] === 'processed'): ?>
+                                <tr style="border-bottom: 1px dotted #ddd; color: #b91c1c;">
+                                    <td style="padding: 2px 0;"><?= !empty($rf['created_at']) ? date('d M, h:i A', strtotime($rf['created_at'])) : 'N/A' ?></td>
+                                    <td style="padding: 2px 0;"><?= htmlspecialchars($rf['reason']) ?></td>
+                                    <td style="text-align: right; padding: 2px 0; font-weight: 700;">-&#8377;<?= number_format((float)($rf['amount'] ?? 0), 2) ?></td>
+                                </tr>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php endif; ?>
         <?php endif; ?>
 
         <?php if ($isJobCard): ?>
@@ -1310,6 +1373,35 @@ $basePrintUrl = $isJobCard
                         No payments recorded yet for this order.
                     </p>
                 <?php endif; ?>
+
+                <?php if (!empty($refunds) && is_array($refunds)): ?>
+                    <?php $hasProcessedA4 = false; foreach ($refunds as $rf) { if ($rf['status'] === 'processed') { $hasProcessedA4 = true; break; } } ?>
+                    <?php if ($hasProcessedA4): ?>
+                        <div class="section-title" style="margin-top: 14px; color: #b91c1c;">Payment Refunds</div>
+                        <table class="receipt-table" style="font-size: 11px;">
+                            <thead>
+                                <tr style="background-color: #fff1f2;">
+                                    <th>Date & Time</th>
+                                    <th>Gateway Refund ID</th>
+                                    <th>Reason</th>
+                                    <th class="text-right">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($refunds as $rf): ?>
+                                    <?php if ($rf['status'] === 'processed'): ?>
+                                        <tr style="color: #b91c1c;">
+                                            <td><?= !empty($rf['created_at']) ? date('d M Y, h:i A', strtotime($rf['created_at'])) : 'N/A' ?></td>
+                                            <td style="font-family: monospace;"><?= Security::e($rf['gateway_refund_id'] ?? 'N/A') ?></td>
+                                            <td><?= Security::e($rf['reason']) ?></td>
+                                            <td class="text-right" style="font-weight: 700;">-&#8377;<?= number_format((float)($rf['amount'] ?? 0), 2) ?></td>
+                                        </tr>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php endif; ?>
+                <?php endif; ?>
             </div>
 
             <!-- Right: Financial Calculation Box -->
@@ -1334,10 +1426,21 @@ $basePrintUrl = $isJobCard
                         <span>&#8377;<?= number_format($totalAmount, 2) ?></span>
                     </div>
 
+                    <?php if (!empty($totalRefunded) && $totalRefunded > 0): ?>
+                    <div class="summary-row" style="margin-top: 4px;">
+                        <span style="color: #b91c1c;">Total Refunded:</span>
+                        <span style="font-weight: 600; color: #b91c1c;">-&#8377;<?= number_format($totalRefunded, 2) ?></span>
+                    </div>
+                    <div class="summary-row" style="margin-top: 4px;">
+                        <span>Net Paid:</span>
+                        <span style="font-weight: 600; color: #15803d;">&#8377;<?= number_format($amountPaid, 2) ?></span>
+                    </div>
+                    <?php else: ?>
                     <div class="summary-row" style="margin-top: 4px;">
                         <span>Amount Paid:</span>
                         <span style="font-weight: 600; color: #15803d;">&#8377;<?= number_format($amountPaid, 2) ?></span>
                     </div>
+                    <?php endif; ?>
 
                     <div class="summary-row summary-row-balance">
                         <span>Balance Due:</span>

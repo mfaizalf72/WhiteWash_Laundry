@@ -332,10 +332,21 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                         <span class="text-slate-600">Total Order Amount:</span>
                         <span class="font-bold text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
                     </div>
+                    <?php if (!empty($totalRefunded) && (float)$totalRefunded > 0): ?>
+                    <div class="flex justify-between py-1 border-t border-slate-100">
+                        <span class="text-slate-600">Total Refunded:</span>
+                        <span class="font-semibold text-rose-600">-₹<?= number_format((float)$totalRefunded, 2) ?></span>
+                    </div>
+                    <div class="flex justify-between py-1 border-t border-slate-100">
+                        <span class="text-slate-600 font-medium">Net Paid:</span>
+                        <span class="font-semibold text-emerald-700">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
+                    </div>
+                    <?php else: ?>
                     <div class="flex justify-between py-1 border-t border-slate-100">
                         <span class="text-slate-600">Amount Paid:</span>
                         <span class="font-semibold text-emerald-600">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
                     </div>
+                    <?php endif; ?>
                     <div class="flex justify-between py-1 border-t border-slate-100 text-base">
                         <span class="font-bold text-slate-800">Outstanding Balance:</span>
                         <span class="font-bold <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-800' ?>">₹<?= number_format($outstanding, 2) ?></span>
@@ -368,6 +379,41 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                                         <?php endif; ?>
                                     </div>
                                     <span class="text-slate-400"><?= date('M d, Y h:i A', strtotime($pmt['created_at'])) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Refunds Log (Read-Only) -->
+                <?php if (!empty($refunds)): ?>
+                    <div class="mt-4 pt-3 border-t border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="text-xs font-bold text-rose-600 uppercase tracking-wider">Refund History</h4>
+                            <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                                Total: -₹<?= number_format((float)($totalRefunded ?? 0), 2) ?>
+                            </span>
+                        </div>
+                        <div class="space-y-2">
+                            <?php foreach ($refunds as $rf): ?>
+                                <div class="text-xs bg-rose-50/50 p-2.5 rounded border border-rose-100 space-y-1">
+                                    <div class="flex items-center justify-between">
+                                        <span class="font-bold text-rose-700">₹<?= number_format((float)$rf['amount'], 2) ?></span>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $rf['status'] === 'processed' ? 'bg-emerald-100 text-emerald-800' : ($rf['status'] === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800') ?>">
+                                            <?= htmlspecialchars($rf['status']) ?>
+                                        </span>
+                                    </div>
+                                    <div class="text-slate-600 text-[11px]">
+                                        <strong>Reason:</strong> <?= htmlspecialchars($rf['reason']) ?>
+                                    </div>
+                                    <?php if (!empty($rf['gateway_refund_id'])): ?>
+                                        <div class="text-slate-400 font-mono text-[10px]">
+                                            Ref: <?= htmlspecialchars($rf['gateway_refund_id']) ?>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="text-slate-400 text-[10px]">
+                                        <?= date('M d, Y h:i A', strtotime($rf['created_at'])) ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>

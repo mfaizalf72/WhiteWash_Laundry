@@ -247,15 +247,21 @@ $nextStatus = Order::getNextStatus($order['status']);
         </div>
 
         <!-- Metrics Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-<?= (!empty($totalRefunded) && (float)$totalRefunded > 0) ? '4' : '3' ?> gap-4">
             <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Order Total</span>
                 <span class="text-xl font-bold font-mono text-slate-900 block mt-1">₹<?= number_format($totalAmt, 2) ?></span>
             </div>
             <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider block">Amount Paid</span>
+                <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider block">Net Paid</span>
                 <span class="text-xl font-bold font-mono text-emerald-700 block mt-1">₹<?= number_format($paidAmt, 2) ?></span>
             </div>
+            <?php if (!empty($totalRefunded) && (float)$totalRefunded > 0): ?>
+            <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-200">
+                <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider block">Total Refunded</span>
+                <span class="text-xl font-bold font-mono text-rose-600 block mt-1">₹<?= number_format((float)$totalRefunded, 2) ?></span>
+            </div>
+            <?php endif; ?>
             <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-100">
                 <span class="text-xs font-semibold text-rose-600 uppercase tracking-wider block">Remaining Balance</span>
                 <span class="text-xl font-bold font-mono text-rose-700 block mt-1">₹<?= number_format($remBal, 2) ?></span>
@@ -317,6 +323,7 @@ $nextStatus = Order::getNextStatus($order['status']);
         <?php endif; ?>
 
         <!-- Payment History Audit Table -->
+        <!-- Payment History Audit Table -->
         <div>
             <h4 class="text-sm font-bold text-slate-900 mb-3">Payment History</h4>
             <?php if (empty($payments)): ?>
@@ -328,19 +335,50 @@ $nextStatus = Order::getNextStatus($order['status']);
                             <tr>
                                 <th class="px-4 py-3">Date & Time</th>
                                 <th class="px-4 py-3">Method</th>
-                                <th class="px-4 py-3">UPI Ref</th>
+                                <th class="px-4 py-3">UPI / Gateway Ref</th>
                                 <th class="px-4 py-3">Amount</th>
                                 <th class="px-4 py-3">Recorded By</th>
+                                <th class="px-4 py-3 text-right">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php foreach ($payments as $p): ?>
                                 <tr class="hover:bg-slate-50/50">
                                     <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($p['created_at']))) ?></td>
-                                    <td class="px-4 py-3 font-semibold uppercase text-slate-800"><?= htmlspecialchars($p['payment_method']) ?></td>
-                                    <td class="px-4 py-3 font-mono text-slate-600"><?= !empty($p['upi_reference']) ? htmlspecialchars($p['upi_reference']) : '<em class="text-slate-400">N/A</em>' ?></td>
+                                    <td class="px-4 py-3 font-semibold uppercase text-slate-800">
+                                        <?= htmlspecialchars($p['payment_method']) ?>
+                                        <?php if (!empty($p['gateway'])): ?>
+                                            <span class="text-[10px] lowercase text-slate-400 font-normal">(<?= htmlspecialchars($p['gateway']) ?>)</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="px-4 py-3 font-mono text-slate-600">
+                                        <?php if (!empty($p['gateway_payment_id'])): ?>
+                                            <?= htmlspecialchars($p['gateway_payment_id']) ?>
+                                        <?php elseif (!empty($p['upi_reference'])): ?>
+                                            <?= htmlspecialchars($p['upi_reference']) ?>
+                                        <?php else: ?>
+                                            <em class="text-slate-400">N/A</em>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="px-4 py-3 font-mono font-bold text-slate-900">₹<?= number_format((float)$p['amount'], 2) ?></td>
                                     <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars($p['recorded_by_name'] ?? 'System User') ?></td>
+                                    <td class="px-4 py-3 text-right">
+                                        <?php if ($p['payment_method'] === 'online'): ?>
+                                            <?php $refAmt = (float)($p['refundable_amount'] ?? 0); ?>
+                                            <?php if ($refAmt > 0): ?>
+                                                <button type="button"
+                                                        onclick="openRefundModal(<?= (int)$p['id'] ?>, <?= $refAmt ?>, '<?= htmlspecialchars($p['gateway_payment_id'] ?? '') ?>')"
+                                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg transition-colors">
+                                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                                                    Refund
+                                                </button>
+                                            <?php else: ?>
+                                                <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Fully Refunded</span>
+                                            <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="text-[11px] text-slate-400">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -348,7 +386,134 @@ $nextStatus = Order::getNextStatus($order['status']);
                 </div>
             <?php endif; ?>
         </div>
+
+        <?php if (!empty($refunds)): ?>
+        <!-- Refund History Audit Table -->
+        <div class="border-t border-slate-100 pt-5">
+            <div class="flex justify-between items-center mb-3">
+                <div>
+                    <h4 class="text-sm font-bold text-slate-900">Refund History</h4>
+                    <p class="text-xs text-slate-500 mt-0.5">Audit log of customer payment reversals.</p>
+                </div>
+                <span class="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                    Total Refunded: ₹<?= number_format((float)($totalRefunded ?? 0), 2) ?>
+                </span>
+            </div>
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
+                        <tr>
+                            <th class="px-4 py-3">Date & Time</th>
+                            <th class="px-4 py-3">Amount</th>
+                            <th class="px-4 py-3">Gateway Refund Ref</th>
+                            <th class="px-4 py-3">Reason</th>
+                            <th class="px-4 py-3">Status</th>
+                            <th class="px-4 py-3">Issued By</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        <?php foreach ($refunds as $rf): ?>
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($rf['created_at']))) ?></td>
+                                <td class="px-4 py-3 font-mono font-bold text-rose-600">₹<?= number_format((float)$rf['amount'], 2) ?></td>
+                                <td class="px-4 py-3 font-mono text-slate-600"><?= !empty($rf['gateway_refund_id']) ? htmlspecialchars($rf['gateway_refund_id']) : '<em class="text-slate-400">Pending / Reconciling</em>' ?></td>
+                                <td class="px-4 py-3 text-slate-700"><?= htmlspecialchars($rf['reason']) ?></td>
+                                <td class="px-4 py-3">
+                                    <?php if ($rf['status'] === 'processed'): ?>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">Processed</span>
+                                    <?php elseif ($rf['status'] === 'pending'): ?>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">Pending</span>
+                                    <?php else: ?>
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">Failed</span>
+                                        <?php if (!empty($rf['gateway_error'])): ?>
+                                            <div class="text-[10px] text-rose-600 mt-0.5 max-w-[200px] truncate" title="<?= htmlspecialchars($rf['gateway_error']) ?>">
+                                                <?= htmlspecialchars($rf['gateway_error']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars($rf['recorded_by_name'] ?? 'Staff') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
+
+    <!-- Refund Modal Dialog -->
+    <div id="refundModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full mx-4 p-6 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Issue Online Refund</h3>
+                    <p class="text-xs text-slate-500 mt-0.5">Reverse payment back to customer via gateway.</p>
+                </div>
+                <button type="button" onclick="closeRefundModal()" class="text-slate-400 hover:text-slate-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <form method="POST" action="/laundry-lms/orders/refund" class="space-y-4" onsubmit="this.querySelector('#modal_refund_submit_btn').disabled = true;">
+                <?= Csrf::field() ?>
+                <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                <input type="hidden" name="payment_id" id="modal_refund_payment_id" value="">
+                <input type="hidden" name="idempotency_key" id="modal_refund_idempotency_key" value="">
+                <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Gateway Payment Reference</label>
+                    <input type="text" id="modal_refund_gpid" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-xl text-xs font-mono text-slate-600">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-xs font-semibold text-slate-700">Refund Amount (₹)</label>
+                        <span class="text-[11px] text-slate-500 font-mono">Max: ₹<span id="modal_refund_max_text">0.00</span></span>
+                    </div>
+                    <input type="number" name="amount" id="modal_refund_amount" step="0.01" min="0.01" required
+                           class="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Reason for Refund</label>
+                    <input type="text" name="reason" id="modal_refund_reason" required placeholder="e.g. Customer cancellation / damaged garment"
+                           class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500">
+                </div>
+
+                <div class="flex justify-end items-center gap-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeRefundModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modal_refund_submit_btn" class="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors shadow-sm">
+                        Process Refund
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function generateNonce() {
+        return 'rfnd_req_' + Math.random().toString(36).substring(2, 15) + '_' + Date.now();
+    }
+    function openRefundModal(paymentId, maxRefundable, gpid) {
+        document.getElementById('modal_refund_payment_id').value = paymentId;
+        document.getElementById('modal_refund_gpid').value = gpid;
+        document.getElementById('modal_refund_max_text').textContent = parseFloat(maxRefundable).toFixed(2);
+        const amtInput = document.getElementById('modal_refund_amount');
+        amtInput.max = maxRefundable;
+        amtInput.value = parseFloat(maxRefundable).toFixed(2);
+        document.getElementById('modal_refund_idempotency_key').value = generateNonce();
+        document.getElementById('modal_refund_reason').value = '';
+        const submitBtn = document.getElementById('modal_refund_submit_btn');
+        if (submitBtn) submitBtn.disabled = false;
+        document.getElementById('refundModal').classList.remove('hidden');
+    }
+    function closeRefundModal() {
+        document.getElementById('refundModal').classList.add('hidden');
+    }
+    </script>
 
     <!-- Customer Instructions & Inspection Breakdown -->
     <div class="space-y-6">

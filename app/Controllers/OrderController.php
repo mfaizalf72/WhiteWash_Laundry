@@ -11,8 +11,10 @@ use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
 use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
+use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
+use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
 
 class OrderController {
     public function index(): void {
@@ -252,24 +254,34 @@ class OrderController {
         $extracted  = OrderMetadata::extract($order['special_instructions']);
         $history    = Order::getStatusHistory($id);
         $payments   = Payment::getByOrderId($id);
-        $items      = LaundryItem::all();
-        $workTypes  = WorkType::all();
-        $pricings   = Pricing::all();
-        $settings   = Settings::get();
-        $layout     = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
+        foreach ($payments as &$p) {
+            $p['refundable_amount'] = ($p['payment_method'] === 'online')
+                ? Refund::getRefundableAmount((int)$p['id'])
+                : 0.00;
+        }
+        unset($p);
+        $refunds       = Refund::getByOrderId($id);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($id);
+        $items         = LaundryItem::all();
+        $workTypes     = WorkType::all();
+        $pricings      = Pricing::all();
+        $settings      = Settings::get();
+        $layout        = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/show', [
-            'title'        => 'Order ' . $order['job_id'] . ' - Launder',
-            'order'        => $order,
-            'orderItems'   => $orderItems,
-            'history'      => $history,
-            'payments'     => $payments,
-            'customerNote' => $extracted['customer_note'],
-            'metadata'     => $extracted['metadata'],
-            'items'        => $items,
-            'workTypes'    => $workTypes,
-            'pricings'     => $pricings,
-            'settings'     => $settings
+            'title'         => 'Order ' . $order['job_id'] . ' - Launder',
+            'order'         => $order,
+            'orderItems'    => $orderItems,
+            'history'       => $history,
+            'payments'      => $payments,
+            'refunds'       => $refunds,
+            'totalRefunded' => $totalRefunded,
+            'customerNote'  => $extracted['customer_note'],
+            'metadata'      => $extracted['metadata'],
+            'items'         => $items,
+            'workTypes'     => $workTypes,
+            'pricings'      => $pricings,
+            'settings'      => $settings
         ], $layout);
     }
 
@@ -351,6 +363,80 @@ class OrderController {
         if (!str_starts_with($redirect, '/')) {
             $redirect = '/orders/show?id=' . $orderId;
         }
+        Router::redirect($redirect);
+    }
+
+    public function processRefund(): void {
+        $orderId   = (int)($_POST['order_id'] ?? 0);
+        $paymentId = (int)($_POST['payment_id'] ?? 0);
+        $userId    = (int)($_SESSION['user_id'] ?? 0);
+        $userRole  = (string)($_SESSION['user_role'] ?? '');
+
+        if (!in_array($userRole, ['admin', 'staff'], true) || $userId <= 0) {
+            $_SESSION['error'] = "Unauthorized access to refund processing.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        if ($orderId <= 0 || $paymentId <= 0) {
+            $_SESSION['error'] = "Invalid order or payment specified for refund.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
+        }
+
+        try {
+            // Phase 1: Atomically validate, reserve balance, and create/retrieve PENDING refund intent
+            $intentResult = Refund::createIntent($_POST, $userId);
+            $refund       = $intentResult['refund'];
+            $isReplay     = $intentResult['already_exists'];
+
+            if ($isReplay && $refund['status'] === 'processed') {
+                $_SESSION['info'] = "This refund has already been successfully processed.";
+                Router::redirect($redirect);
+                return;
+            }
+
+            if ($isReplay && $refund['status'] === 'failed') {
+                $_SESSION['error'] = "A previous refund attempt with this request key failed. Please submit a new refund request.";
+                Router::redirect($redirect);
+                return;
+            }
+
+            $refundId         = (int)$refund['id'];
+            $gatewayDriver    = $refund['gateway'] ?: 'mock';
+            $gatewayPaymentId = (string)$refund['gateway_payment_id'];
+            $amount           = (float)$refund['amount'];
+
+            // Phase 2: Call payment gateway WITHOUT any database locks
+            $gateway = PaymentGatewayFactory::create($gatewayDriver);
+            $res = $gateway->createRefund($gatewayPaymentId, $amount, [
+                'refund_id'       => $refundId,
+                'order_id'        => $orderId,
+                'payment_id'      => $paymentId,
+                'reason'          => (string)$refund['reason'],
+                'idempotency_key' => (string)$refund['idempotency_key'],
+                'mock_status'     => $_POST['mock_status'] ?? null
+            ]);
+
+            // Phase 3: Finalize settlement state
+            if ($res['status'] === 'processed' || ($res['success'] && !empty($res['gateway_refund_id']) && $res['status'] !== 'pending')) {
+                Refund::settleSuccess($refundId, (string)$res['gateway_refund_id']);
+                $_SESSION['success'] = "Refund of ₹" . number_format($amount, 2) . " processed successfully! (Ref: " . htmlspecialchars((string)$res['gateway_refund_id']) . ")";
+            } elseif ($res['status'] === 'pending') {
+                $_SESSION['info'] = "Refund of ₹" . number_format($amount, 2) . " submitted and is pending gateway confirmation.";
+            } else {
+                Refund::settleFailure($refundId, $res['error'] ?? 'Gateway rejected refund.');
+                $_SESSION['error'] = "Gateway refund failed: " . ($res['error'] ?? 'Unknown gateway rejection.');
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = "Refund error: " . $e->getMessage();
+        }
+
         Router::redirect($redirect);
     }
 
@@ -483,24 +569,28 @@ class OrderController {
         $orderItems = Order::getItems($id);
         $extracted  = OrderMetadata::extract($order['special_instructions']);
         $history    = Order::getStatusHistory($id);
-        $payments   = Payment::getByOrderId($id);
-        $settings   = Settings::get();
+        $payments      = Payment::getByOrderId($id);
+        $refunds       = Refund::getByOrderId($id);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($id);
+        $settings      = Settings::get();
 
         $rawPaper = (string)($_GET['paper'] ?? 'a4');
         $paper    = in_array($rawPaper, ['58', '80'], true) ? $rawPaper : 'a4';
 
         Router::view('orders/print', [
-            'title'        => 'Job Card - ' . $order['job_id'],
-            'mode'         => 'job_card',
-            'paper'        => $paper,
-            'order'        => $order,
-            'orderItems'   => $orderItems,
-            'history'      => $history,
-            'payments'     => $payments,
-            'settings'     => $settings,
-            'customerNote' => $extracted['customer_note'],
-            'metadata'     => $extracted['metadata'],
-            'backUrl'      => '/laundry-lms/orders/show?id=' . $order['id']
+            'title'         => 'Job Card - ' . $order['job_id'],
+            'mode'          => 'job_card',
+            'paper'         => $paper,
+            'order'         => $order,
+            'orderItems'    => $orderItems,
+            'history'       => $history,
+            'payments'      => $payments,
+            'refunds'       => $refunds,
+            'totalRefunded' => $totalRefunded,
+            'settings'      => $settings,
+            'customerNote'  => $extracted['customer_note'],
+            'metadata'      => $extracted['metadata'],
+            'backUrl'       => '/laundry-lms/orders/show?id=' . $order['id']
         ], 'print');
     }
 }

@@ -96,6 +96,12 @@ class MockPaymentGateway implements PaymentGatewayInterface {
         $gPayId    = (string)($data['gateway_payment_id'] ?? '');
         $amount    = isset($data['amount']) ? round((float)$data['amount'], 2) : null;
 
+        $refundId   = isset($data['refund_id']) ? (int)$data['refund_id'] : (isset($data['notes']['refund_id']) ? (int)$data['notes']['refund_id'] : (isset($data['payload']['refund']['entity']['notes']['refund_id']) ? (int)$data['payload']['refund']['entity']['notes']['refund_id'] : null));
+        $gRefundId  = !empty($data['gateway_refund_id']) ? (string)$data['gateway_refund_id'] : (!empty($data['payload']['refund']['entity']['id']) ? (string)$data['payload']['refund']['entity']['id'] : null);
+        if (empty($gPayId) && !empty($data['payload']['refund']['entity']['payment_id'])) {
+            $gPayId = (string)$data['payload']['refund']['entity']['payment_id'];
+        }
+
         if (empty($eventId) || empty($eventType)) {
             return [
                 'valid'   => false,
@@ -110,11 +116,81 @@ class MockPaymentGateway implements PaymentGatewayInterface {
             'event_id'           => $eventId,
             'event_type'         => $eventType,
             'order_id'           => $orderId,
+            'refund_id'          => $refundId,
             'gateway_order_id'   => $gOrderId,
             'gateway_payment_id' => $gPayId,
+            'gateway_refund_id'  => $gRefundId,
             'amount'             => $amount,
             'payload'            => $data,
             'error'              => null
+        ];
+    }
+
+    public function createRefund(string $gatewayPaymentId, float $amount, array $options = []): array {
+        if ($amount <= 0) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Refund amount must be greater than zero.'
+            ];
+        }
+
+        if (empty($gatewayPaymentId)) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Gateway payment ID is required for refunds.'
+            ];
+        }
+
+        // Support simulated failures in testing
+        if (!empty($options['mock_status']) && $options['mock_status'] === 'failed') {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Simulated gateway refund failure.'
+            ];
+        }
+        if (!empty($options['reason']) && $options['reason'] === 'simulated_failure') {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Simulated gateway refund failure.'
+            ];
+        }
+        if ($amount == 9999.00) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Simulated amount failure.'
+            ];
+        }
+
+        $refundId = $options['refund_id'] ?? bin2hex(random_bytes(4));
+        $timestamp = time();
+        $random = bin2hex(random_bytes(4));
+        $mockRefundId = "mock_rfnd_{$refundId}_{$timestamp}_{$random}";
+
+        // Support simulated pending state
+        if (!empty($options['mock_status']) && $options['mock_status'] === 'pending') {
+            return [
+                'success'           => true,
+                'gateway_refund_id' => $mockRefundId,
+                'status'            => 'pending',
+                'error'             => null
+            ];
+        }
+
+        return [
+            'success'           => true,
+            'gateway_refund_id' => $mockRefundId,
+            'status'            => 'processed',
+            'error'             => null
         ];
     }
 }

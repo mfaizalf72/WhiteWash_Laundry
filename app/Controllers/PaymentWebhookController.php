@@ -6,6 +6,7 @@ namespace Faizal\LaundryLms\Controllers;
 use Faizal\LaundryLms\Core\Database;
 use Faizal\LaundryLms\Models\Order;
 use Faizal\LaundryLms\Models\Payment;
+use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
 
 class PaymentWebhookController {
@@ -71,8 +72,8 @@ class PaymentWebhookController {
             exit;
         }
 
-        // 2. Process supported events (e.g. payment.captured, order.paid)
-        $supportedEvents = ['payment.captured', 'order.paid'];
+        // 2. Process supported events (e.g. payment.captured, order.paid, refund.processed, refund.failed)
+        $supportedEvents = ['payment.captured', 'order.paid', 'refund.processed', 'refund.failed'];
         if (!in_array($eventType, $supportedEvents, true)) {
             // Record ignored event so retries do not re-parse
             $insEvent = $db->prepare("INSERT INTO payment_webhooks (gateway, event_id, event_type, payload) VALUES (:gw, :eid, :etype, :payload)");
@@ -90,6 +91,60 @@ class PaymentWebhookController {
             http_response_code(200);
             echo json_encode(['status' => 'ignored_event_type', 'event_type' => $eventType]);
             exit;
+        }
+
+        // 3. Handle Refund Webhook Events
+        if (in_array($eventType, ['refund.processed', 'refund.failed'], true)) {
+            $refundId  = !empty($verification['refund_id']) ? (int)$verification['refund_id'] : 0;
+            $gRefundId = !empty($verification['gateway_refund_id']) ? (string)$verification['gateway_refund_id'] : null;
+
+            $refund = null;
+            if ($refundId > 0) {
+                $refund = Refund::find($refundId);
+            }
+            if (!$refund && !empty($gRefundId)) {
+                $refund = Refund::findByGatewayRefundId($gRefundId);
+            }
+
+            if (!$refund) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Unable to correlate refund event to a persistent refund intent.']);
+                exit;
+            }
+
+            try {
+                if ($eventType === 'refund.processed') {
+                    $finalGRefundId = $gRefundId ?: ($refund['gateway_refund_id'] ?: 'gw_rfnd_' . $eventId);
+                    Refund::settleSuccess((int)$refund['id'], $finalGRefundId);
+                } else {
+                    Refund::settleFailure((int)$refund['id'], 'Gateway notified refund failure.');
+                }
+
+                // Log into payment_webhooks after successful settlement
+                $insEvent = $db->prepare("INSERT INTO payment_webhooks (gateway, event_id, event_type, payload) VALUES (:gw, :eid, :etype, :payload)");
+                try {
+                    $insEvent->execute([
+                        'gw'      => $gatewayName,
+                        'eid'     => $eventId,
+                        'etype'   => $eventType,
+                        'payload' => $rawPayload
+                    ]);
+                } catch (\PDOException $e) {
+                    // Race condition on duplicate webhook is safe
+                }
+
+                http_response_code(200);
+                echo json_encode([
+                    'status'     => 'success',
+                    'event_type' => $eventType,
+                    'refund_id'  => (int)$refund['id']
+                ]);
+                exit;
+            } catch (\Throwable $e) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Failed to process refund webhook: ' . $e->getMessage()]);
+                exit;
+            }
         }
 
         $orderId          = $verification['order_id'] ?? null;

@@ -111,6 +111,7 @@ $router->get('/orders/show', 'Faizal\LaundryLms\Controllers\OrderController@show
 $router->get('/orders/print', 'Faizal\LaundryLms\Controllers\OrderController@printJobCard', $authRole);
 $router->post('/orders/status', 'Faizal\LaundryLms\Controllers\OrderController@updateStatus', $authRoleCsrf);
 $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@recordPayment', $authRoleCsrf);
+$router->post('/orders/refund', 'Faizal\LaundryLms\Controllers\OrderController@processRefund', $authRoleCsrf);
 $router->post('/orders/claim', 'Faizal\LaundryLms\Controllers\OrderController@claimOrder', $staffOnlyAuthCsrf);
 $router->post('/orders/inspect', 'Faizal\LaundryLms\Controllers\OrderController@submitInspection', $authRoleCsrf);
 $router->post('/orders/override-price-approval', 'Faizal\LaundryLms\Controllers\OrderController@overridePriceApproval', $adminOnlyAuthCsrf);

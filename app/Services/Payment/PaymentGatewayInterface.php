@@ -58,4 +58,24 @@ interface PaymentGatewayInterface {
      * ]
      */
     public function verifyWebhook(string $rawPayload, string $signatureHeader): array;
+
+    /**
+     * Issue a refund for an online payment via the gateway.
+     *
+     * @param string $gatewayPaymentId Gateway payment ID (e.g. 'pay_xxx')
+     * @param float $amount Amount to refund in rupees (e.g. 100.00)
+     * @param array $options Additional options: [
+     *     'refund_id'       => int,     // LMS internal refund intent ID
+     *     'order_id'        => int,     // LMS internal order ID
+     *     'reason'          => string,  // Staff reason
+     *     'idempotency_key' => string,  // Unique idempotency nonce
+     * ]
+     * @return array [
+     *     'success'           => bool,
+     *     'gateway_refund_id' => ?string,
+     *     'status'            => string, // 'processed' | 'pending' | 'failed'
+     *     'error'             => ?string
+     * ]
+     */
+    public function createRefund(string $gatewayPaymentId, float $amount, array $options = []): array;
 }

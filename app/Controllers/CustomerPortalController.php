@@ -11,6 +11,7 @@ use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
 use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
+use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
@@ -79,7 +80,9 @@ class CustomerPortalController {
         $orderItems = Order::getItems($orderId);
         $extracted  = OrderMetadata::extract($order['special_instructions']);
         $history    = Order::getStatusHistory($orderId);
-        $payments   = Payment::getByOrderId($orderId);
+        $payments      = Payment::getByOrderId($orderId);
+        $refunds       = Refund::getByOrderId($orderId);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($orderId);
 
         Router::view('customer/orders/show', [
             'title'         => 'Order ' . $order['job_id'] . ' - Launder',
@@ -87,6 +90,8 @@ class CustomerPortalController {
             'orderItems'    => $orderItems,
             'history'       => $history,
             'payments'      => $payments,
+            'refunds'       => $refunds,
+            'totalRefunded' => $totalRefunded,
             'customerNote'  => $extracted['customer_note'],
             'metadata'      => $extracted['metadata'],
             'gatewayDriver' => (getenv('PAYMENT_GATEWAY_DRIVER') ?: 'mock')
@@ -552,24 +557,28 @@ class CustomerPortalController {
         $orderItems = Order::getItems($orderId);
         $extracted  = OrderMetadata::extract($order['special_instructions']);
         $history    = Order::getStatusHistory($orderId);
-        $payments   = Payment::getByOrderId($orderId);
-        $settings   = Settings::get();
+        $payments      = Payment::getByOrderId($orderId);
+        $refunds       = Refund::getByOrderId($orderId);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($orderId);
+        $settings      = Settings::get();
 
         $rawPaper = (string)($_GET['paper'] ?? 'a4');
         $paper    = in_array($rawPaper, ['58', '80'], true) ? $rawPaper : 'a4';
 
         Router::view('orders/print', [
-            'title'        => 'Receipt - ' . $order['job_id'],
-            'mode'         => 'receipt',
-            'paper'        => $paper,
-            'order'        => $order,
-            'orderItems'   => $orderItems,
-            'history'      => $history,
-            'payments'     => $payments,
-            'settings'     => $settings,
-            'customerNote' => $extracted['customer_note'],
-            'metadata'     => $extracted['metadata'],
-            'backUrl'      => '/laundry-lms/customer/orders/show?id=' . $order['id']
+            'title'         => 'Receipt - ' . $order['job_id'],
+            'mode'          => 'receipt',
+            'paper'         => $paper,
+            'order'         => $order,
+            'orderItems'    => $orderItems,
+            'history'       => $history,
+            'payments'      => $payments,
+            'refunds'       => $refunds,
+            'totalRefunded' => $totalRefunded,
+            'settings'      => $settings,
+            'customerNote'  => $extracted['customer_note'],
+            'metadata'      => $extracted['metadata'],
+            'backUrl'       => '/laundry-lms/customer/orders/show?id=' . $order['id']
         ], 'print');
     }
 

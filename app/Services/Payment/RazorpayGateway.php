@@ -123,18 +123,30 @@ class RazorpayGateway implements PaymentGatewayInterface {
         $payment   = $data['payload']['payment']['entity'] ?? [];
         $order     = $data['payload']['order']['entity'] ?? [];
 
-        $gPaymentId = !empty($payment['id']) ? (string)$payment['id'] : null;
+        $refund    = $data['payload']['refund']['entity'] ?? [];
+
+        $gPaymentId = !empty($payment['id']) ? (string)$payment['id'] : (!empty($refund['payment_id']) ? (string)$refund['payment_id'] : null);
         $gOrderId   = !empty($payment['order_id']) ? (string)$payment['order_id'] : (!empty($order['id']) ? (string)$order['id'] : null);
-        $amountPaise = $payment['amount'] ?? ($order['amount_paid'] ?? 0);
+        $gRefundId  = !empty($refund['id']) ? (string)$refund['id'] : null;
+        $amountPaise = $payment['amount'] ?? ($refund['amount'] ?? ($order['amount_paid'] ?? 0));
         $amount      = round(((float)$amountPaise) / 100, 2);
 
         $internalOrderId = null;
         if (!empty($payment['notes']['order_id'])) {
             $internalOrderId = (int)$payment['notes']['order_id'];
+        } elseif (!empty($refund['notes']['order_id'])) {
+            $internalOrderId = (int)$refund['notes']['order_id'];
         } elseif (!empty($order['notes']['order_id'])) {
             $internalOrderId = (int)$order['notes']['order_id'];
         } elseif (!empty($order['receipt']) && preg_match('/^ord_(\d+)_/', (string)$order['receipt'], $matches)) {
             $internalOrderId = (int)$matches[1];
+        }
+
+        $internalRefundId = null;
+        if (!empty($refund['notes']['refund_id'])) {
+            $internalRefundId = (int)$refund['notes']['refund_id'];
+        } elseif (!empty($refund['receipt']) && preg_match('/^rfnd_(\d+)_/', (string)$refund['receipt'], $matches)) {
+            $internalRefundId = (int)$matches[1];
         }
 
         return [
@@ -143,11 +155,99 @@ class RazorpayGateway implements PaymentGatewayInterface {
             'event_id'           => $eventId,
             'event_type'         => $eventType,
             'order_id'           => $internalOrderId,
+            'refund_id'          => $internalRefundId,
             'gateway_order_id'   => $gOrderId,
             'gateway_payment_id' => $gPaymentId,
+            'gateway_refund_id'  => $gRefundId,
             'amount'             => $amount,
             'payload'            => $data,
             'error'              => null
+        ];
+    }
+
+    public function createRefund(string $gatewayPaymentId, float $amount, array $options = []): array {
+        if ($amount <= 0) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Refund amount must be greater than zero.'
+            ];
+        }
+
+        if (empty($gatewayPaymentId)) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'failed',
+                'error'             => 'Gateway payment ID is required for refunds.'
+            ];
+        }
+
+        $amountPaise     = (int)round($amount * 100);
+        $refundId        = (int)($options['refund_id'] ?? 0);
+        $orderId         = (int)($options['order_id'] ?? 0);
+        $reason          = trim((string)($options['reason'] ?? 'Customer refund'));
+        $idempotencyKey  = trim((string)($options['idempotency_key'] ?? ''));
+        $receipt         = substr("rfnd_{$refundId}_{$orderId}_" . time(), 0, 40);
+
+        $payload = [
+            'amount'  => $amountPaise,
+            'receipt' => $receipt,
+            'notes'   => [
+                'refund_id'  => (string)$refundId,
+                'order_id'   => (string)$orderId,
+                'reason'     => substr($reason, 0, 100)
+            ]
+        ];
+
+        $headers = ['Content-Type: application/json'];
+        if (!empty($idempotencyKey)) {
+            $headers[] = 'X-Razorpay-Idempotency-Key: ' . $idempotencyKey;
+        }
+
+        $ch = curl_init("https://api.razorpay.com/v1/payments/{$gatewayPaymentId}/refund");
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_USERPWD        => "{$this->keyId}:{$this->keySecret}",
+            CURLOPT_HTTPHEADER     => $headers,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_SSL_VERIFYPEER => true
+        ]);
+
+        $response  = curl_exec($ch);
+        $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if ($response === false || !empty($curlError)) {
+            return [
+                'success'           => false,
+                'gateway_refund_id' => null,
+                'status'            => 'pending',
+                'error'             => 'Razorpay API connection error / timeout: ' . $curlError
+            ];
+        }
+
+        $result = json_decode((string)$response, true);
+        if ($httpCode >= 200 && $httpCode < 300 && !empty($result['id'])) {
+            $gatewayStatus = (!empty($result['status']) && $result['status'] === 'pending') ? 'pending' : 'processed';
+            return [
+                'success'           => true,
+                'gateway_refund_id' => (string)$result['id'],
+                'status'            => $gatewayStatus,
+                'error'             => null
+            ];
+        }
+
+        $errorDesc = $result['error']['description'] ?? "Razorpay Refund Failed (HTTP {$httpCode})";
+        return [
+            'success'           => false,
+            'gateway_refund_id' => null,
+            'status'            => 'failed',
+            'error'             => $errorDesc
         ];
     }
 }
