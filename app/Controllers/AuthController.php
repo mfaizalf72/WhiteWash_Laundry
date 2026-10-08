@@ -53,9 +53,10 @@ class AuthController {
             // Regenerate session ID to prevent session fixation attacks
             session_regenerate_id(true);
 
-            $_SESSION['user_id']   = (int)$user['id'];
-            $_SESSION['user_role'] = $user['role'];
-            $_SESSION['user_name'] = $user['name'];
+            $_SESSION['user_id']        = (int)$user['id'];
+            $_SESSION['user_role']      = $user['role'];
+            $_SESSION['user_name']      = $user['name'];
+            $_SESSION['user_branch_id'] = !empty($user['branch_id']) ? (int)$user['branch_id'] : null;
 
             if ($user['role'] === 'customer') {
                 if ($pin === '1234') {

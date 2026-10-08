@@ -14,7 +14,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                 &larr; Back to My Orders
             </a>
             <h1 class="text-2xl font-bold text-slate-800 font-display">Order #<?= Security::e($order['job_id']) ?></h1>
-            <p class="text-xs text-slate-500">Placed on <?= date('F d, Y \a\t h:i A', strtotime($order['created_at'])) ?></p>
+            <div class="flex items-center gap-2 mt-1">
+                <p class="text-xs text-slate-500">Placed on <?= date('F d, Y \a\t h:i A', strtotime($order['created_at'])) ?></p>
+                <?php if (!empty($order['branch_name'])): ?>
+                    <span class="text-xs text-slate-400">•</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        Branch: <?= Security::e($order['branch_name']) ?>
+                    </span>
+                <?php endif; ?>
+            </div>
         </div>
         <div class="flex items-center space-x-3">
             <a href="/laundry-lms/customer/orders/pdf?id=<?= (int)$order['id'] ?>&download=1" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition">

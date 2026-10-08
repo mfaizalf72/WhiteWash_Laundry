@@ -5,6 +5,7 @@ namespace Faizal\LaundryLms\Controllers;
 
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\Report;
+use Faizal\LaundryLms\Models\Branch;
 
 class DashboardController {
     public function index(): void {
@@ -19,18 +20,24 @@ class DashboardController {
             $range = Report::getDateRange('today');
         }
 
-        $kpis       = Report::getKpis($range['start'], $range['end']);
-        $statusSum  = Report::getStatusSummary($range['start'], $range['end']);
-        $workload   = Report::getOperationalWorkload();
-        $recent     = Report::getRecentOrders(10);
+        $rawBranch        = (int)($_GET['branch_id'] ?? 0);
+        $selectedBranchId = $rawBranch > 0 ? $rawBranch : null;
+
+        $kpis       = Report::getKpis($range['start'], $range['end'], $selectedBranchId);
+        $statusSum  = Report::getStatusSummary($range['start'], $range['end'], $selectedBranchId);
+        $workload   = Report::getOperationalWorkload($selectedBranchId);
+        $recent     = Report::getRecentOrders(10, $selectedBranchId);
+        $branches   = Branch::allActive();
 
         Router::view('admin/dashboard', [
-            'title'        => 'Dashboard - Launder',
-            'range'        => $range,
-            'kpis'         => $kpis,
-            'statusSum'    => $statusSum,
-            'workload'     => $workload,
-            'recentOrders' => $recent
+            'title'            => 'Dashboard - Launder',
+            'range'            => $range,
+            'kpis'             => $kpis,
+            'statusSum'        => $statusSum,
+            'workload'         => $workload,
+            'recentOrders'     => $recent,
+            'branches'         => $branches,
+            'selectedBranchId' => $selectedBranchId
         ], 'admin');
     }
 }

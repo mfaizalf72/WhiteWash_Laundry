@@ -132,6 +132,13 @@ $router->post('/admin/staff', 'Faizal\LaundryLms\Controllers\Admin\StaffControll
 $router->post('/admin/staff/update', 'Faizal\LaundryLms\Controllers\Admin\StaffController@update', $adminOnlyAuthCsrf);
 $router->post('/admin/staff/toggle-status', 'Faizal\LaundryLms\Controllers\Admin\StaffController@toggleStatus', $adminOnlyAuthCsrf);
 
+// Admin Branch Management Routes (Admin Only)
+$router->get('/admin/branches', 'Faizal\LaundryLms\Controllers\Admin\BranchController@index', $adminOnlyAuth);
+$router->post('/admin/branches', 'Faizal\LaundryLms\Controllers\Admin\BranchController@store', $adminOnlyAuthCsrf);
+$router->post('/admin/branches/update', 'Faizal\LaundryLms\Controllers\Admin\BranchController@update', $adminOnlyAuthCsrf);
+$router->post('/admin/branches/toggle-status', 'Faizal\LaundryLms\Controllers\Admin\BranchController@toggleStatus', $adminOnlyAuthCsrf);
+$router->post('/admin/branches/delete', 'Faizal\LaundryLms\Controllers\Admin\BranchController@delete', $adminOnlyAuthCsrf);
+
 // Admin Settings Route (Admin Only)
 $router->get('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@index', $adminOnlyAuth);
 $router->post('/admin/settings', 'Faizal\LaundryLms\Controllers\Admin\SettingsController@update', $adminOnlyAuthCsrf);

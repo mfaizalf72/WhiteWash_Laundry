@@ -78,9 +78,20 @@ if (!function_exists('buildQueryString')) {
                 <option value="completed" <?= $status === 'completed' ? 'selected' : '' ?>>Completed</option>
             </select>
 
+            <?php if (empty($isStaff)): ?>
+                <select name="branch_id" onchange="this.form.submit()" class="px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 bg-white outline-none cursor-pointer">
+                    <option value="">All Branches</option>
+                    <?php foreach ($branches ?? [] as $b): ?>
+                        <option value="<?= (int)$b['id'] ?>" <?= ((int)($selectedBranchId ?? 0) === (int)$b['id']) ? 'selected' : '' ?>>
+                            <?= Security::e($b['name']) ?> (<?= Security::e($b['code']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            <?php endif; ?>
+
             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-sm">Filter</button>
             
-            <?php if (!empty($search) || !empty($status) || $pickupToday || $deliveryToday || $paymentDue): ?>
+            <?php if (!empty($search) || !empty($status) || !empty($selectedBranchId) || $pickupToday || $deliveryToday || $paymentDue): ?>
                 <a href="/laundry-lms/orders" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center">Clear</a>
             <?php endif; ?>
         </form>
@@ -113,6 +124,7 @@ if (!function_exists('buildQueryString')) {
                 <thead>
                     <tr class="bg-slate-50/80 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <th class="px-5 py-3.5">Job ID</th>
+                        <th class="px-5 py-3.5">Branch</th>
                         <th class="px-5 py-3.5">Customer & Mobile</th>
                         <th class="px-5 py-3.5">Pickup Date</th>
                         <th class="px-5 py-3.5">Delivery Date</th>
@@ -126,7 +138,7 @@ if (!function_exists('buildQueryString')) {
                 <tbody class="divide-y divide-slate-100 text-slate-700">
                     <?php if (empty($orders)): ?>
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center text-slate-400">
+                            <td colspan="10" class="px-6 py-12 text-center text-slate-400">
                                 No orders found matching your criteria.
                             </td>
                         </tr>
@@ -139,6 +151,11 @@ if (!function_exists('buildQueryString')) {
                                     <a href="/laundry-lms/orders/show?id=<?= (int)$o['id'] ?>" class="text-blue-600 hover:underline">
                                         <?= Security::e($o['job_id']) ?>
                                     </a>
+                                </td>
+                                <td class="px-5 py-3.5 text-xs">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="<?= Security::e($o['branch_name'] ?? '') ?>">
+                                        <?= Security::e($o['branch_code'] ?? ($o['branch_name'] ?? 'MAIN')) ?>
+                                    </span>
                                 </td>
                                 <td class="px-5 py-3.5">
                                     <div class="font-semibold text-slate-900"><?= Security::e($o['customer_name']) ?></div>

@@ -36,9 +36,16 @@ $cancData    = $metadata['cancellation'] ?? [];
 $rejData     = $metadata['rejection'] ?? [];
 $inspData    = $metadata['inspection'] ?? [];
 
+$branchName  = !empty($order['branch_name']) ? $order['branch_name'] : null;
 $shopName    = !empty($settings['business_name']) ? $settings['business_name'] : 'Launder LMS';
-$shopAddress = !empty($settings['address']) ? $settings['address'] : '';
-$shopPhone   = !empty($settings['whatsapp_number']) ? $settings['whatsapp_number'] : '';
+$shopSubName = '';
+if ($branchName && $branchName !== $shopName) {
+    $shopSubName = $branchName . (!empty($order['branch_code']) ? ' (' . $order['branch_code'] . ')' : '');
+} elseif (!empty($order['branch_code'])) {
+    $shopSubName = 'Branch Code: ' . $order['branch_code'];
+}
+$shopAddress = !empty($order['branch_address']) ? $order['branch_address'] : (!empty($settings['address']) ? $settings['address'] : '');
+$shopPhone   = !empty($order['branch_phone']) ? $order['branch_phone'] : (!empty($settings['whatsapp_number']) ? $settings['whatsapp_number'] : '');
 $shopHours   = !empty($settings['working_hours']) ? $settings['working_hours'] : '';
 
 $statusLabels = [
@@ -370,6 +377,9 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
         <tr>
             <td style="width: 58%;">
                 <div class="shop-name"><?= Security::e($shopName) ?></div>
+                <?php if (!empty($shopSubName)): ?>
+                    <div style="font-size: 11px; font-weight: bold; color: #475569; margin-top: 2px;"><?= Security::e($shopSubName) ?></div>
+                <?php endif; ?>
                 <div class="shop-meta">
                     <?php if (!empty($shopAddress)): ?>
                         <div><?= Security::e($shopAddress) ?></div>
@@ -429,6 +439,7 @@ $statusDisplay = $statusLabels[$order['status'] ?? ''] ?? ucwords(str_replace('_
             <td class="info-card">
                 <div class="info-card-title">Operations & Schedule</div>
                 <div class="info-card-text">
+                    <strong>Branch:</strong> <?= Security::e(!empty($order['branch_name']) ? $order['branch_name'] . (!empty($order['branch_code']) ? ' (' . $order['branch_code'] . ')' : '') : 'Main Branch') ?><br>
                     <strong>Pickup Date:</strong> <?= !empty($order['pickup_date']) ? date('d M Y', strtotime($order['pickup_date'])) : 'N/A' ?><br>
                     <strong>Delivery Date:</strong> <?= !empty($order['delivery_date']) ? date('d M Y', strtotime($order['delivery_date'])) : 'Pending Schedule' ?><br>
                     <strong>Staff Operator:</strong> <?= Security::e(!empty($order['staff_name']) ? $order['staff_name'] : 'Unassigned') ?>

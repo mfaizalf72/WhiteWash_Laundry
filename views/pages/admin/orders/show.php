@@ -19,6 +19,12 @@ $nextStatus = Order::getNextStatus($order['status']);
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider <?= $order['status'] === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200' ?>">
                     <?= str_replace('_', ' ', htmlspecialchars($order['status'])) ?>
                 </span>
+                <?php if (!empty($order['branch_name'])): ?>
+                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                        <svg class="w-3.5 h-3.5 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        <?= htmlspecialchars($order['branch_name']) ?> (<?= htmlspecialchars($order['branch_code'] ?? '') ?>)
+                    </span>
+                <?php endif; ?>
             </div>
             <p class="text-xs text-slate-400 mt-1">Created on <?= htmlspecialchars(date('F j, Y, g:i a', strtotime($order['created_at']))) ?></p>
         </div>
@@ -169,6 +175,17 @@ $nextStatus = Order::getNextStatus($order['status']);
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
             <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Schedule & Assignment</h3>
             <div class="space-y-3 text-sm">
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Servicing Branch</span>
+                    <span class="font-medium text-slate-800 block">
+                        <?= htmlspecialchars($order['branch_name'] ?? 'Main Branch') ?>
+                        <?= !empty($order['branch_code']) ? '(' . htmlspecialchars($order['branch_code']) . ')' : '' ?>
+                        <?= !empty($order['branch_phone']) ? ' • ' . htmlspecialchars($order['branch_phone']) : '' ?>
+                    </span>
+                    <?php if (!empty($order['branch_address'])): ?>
+                        <span class="text-xs text-slate-500 block mt-0.5"><?= htmlspecialchars($order['branch_address']) ?></span>
+                    <?php endif; ?>
+                </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Pickup Date</span>
                     <span class="font-medium text-slate-800 block"><?= htmlspecialchars(date('F j, Y', strtotime($order['pickup_date']))) ?></span>

@@ -51,9 +51,16 @@ $cancData = $metadata['cancellation'] ?? [];
 $rejData  = $metadata['rejection'] ?? [];
 $inspData = $metadata['inspection'] ?? [];
 
+$branchName  = !empty($order['branch_name']) ? $order['branch_name'] : null;
 $shopName    = !empty($settings['business_name']) ? $settings['business_name'] : 'Launder LMS';
-$shopAddress = !empty($settings['address']) ? $settings['address'] : '';
-$shopPhone   = !empty($settings['whatsapp_number']) ? $settings['whatsapp_number'] : '';
+$shopSubName = '';
+if ($branchName && $branchName !== $shopName) {
+    $shopSubName = $branchName . (!empty($order['branch_code']) ? ' (' . $order['branch_code'] . ')' : '');
+} elseif (!empty($order['branch_code'])) {
+    $shopSubName = 'Branch Code: ' . $order['branch_code'];
+}
+$shopAddress = !empty($order['branch_address']) ? $order['branch_address'] : (!empty($settings['address']) ? $settings['address'] : '');
+$shopPhone   = !empty($order['branch_phone']) ? $order['branch_phone'] : (!empty($settings['whatsapp_number']) ? $settings['whatsapp_number'] : '');
 $shopHours   = !empty($settings['working_hours']) ? $settings['working_hours'] : '';
 
 $statusLabels = [
@@ -1177,6 +1184,9 @@ $basePrintUrl = $isJobCard
         <div class="doc-header">
             <div class="shop-info">
                 <h1><?= Security::e($shopName) ?></h1>
+                <?php if (!empty($shopSubName)): ?>
+                    <p style="font-weight: bold; color: #475569;"><?= Security::e($shopSubName) ?></p>
+                <?php endif; ?>
                 <?php if (!empty($shopAddress)): ?>
                     <p><?= Security::e($shopAddress) ?></p>
                 <?php endif; ?>
@@ -1243,6 +1253,10 @@ $basePrintUrl = $isJobCard
             <!-- Operations / Schedule Card -->
             <div class="info-card">
                 <div class="info-card-title">Operations & Schedule</div>
+                <div class="info-row">
+                    <span class="info-label">Branch:</span>
+                    <span class="info-val"><?= Security::e(!empty($order['branch_name']) ? $order['branch_name'] . (!empty($order['branch_code']) ? ' (' . $order['branch_code'] . ')' : '') : 'Main Branch') ?></span>
+                </div>
                 <div class="info-row">
                     <span class="info-label">Pickup Date:</span>
                     <span class="info-val"><?= !empty($order['pickup_date']) ? date('d M Y', strtotime($order['pickup_date'])) : 'N/A' ?></span>

@@ -7,7 +7,7 @@
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div>
             <h2 class="text-xl font-bold text-slate-900 font-display">Staff Management</h2>
-            <p class="text-sm text-slate-500 mt-1">Manage operational staff accounts, authentication credentials, and system access.</p>
+            <p class="text-sm text-slate-500 mt-1">Manage operational staff accounts, authentication credentials, and branch assignments.</p>
         </div>
         <button onclick="document.getElementById('createStaffModal').classList.remove('hidden')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -36,6 +36,7 @@
                 <thead>
                     <tr class="bg-slate-50/50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                         <th class="px-6 py-4">Staff Member</th>
+                        <th class="px-6 py-4">Assigned Branch</th>
                         <th class="px-6 py-4">Mobile Number</th>
                         <th class="px-6 py-4">Status</th>
                         <th class="px-6 py-4">Created Date</th>
@@ -45,7 +46,7 @@
                 <tbody class="divide-y divide-slate-100 text-sm">
                     <?php if (empty($staffMembers)): ?>
                         <tr>
-                            <td colspan="5" class="px-6 py-12 text-center text-slate-400">
+                            <td colspan="6" class="px-6 py-12 text-center text-slate-400">
                                 No staff accounts found matching your criteria.
                             </td>
                         </tr>
@@ -55,6 +56,11 @@
                                 <td class="px-6 py-4">
                                     <div class="font-bold text-slate-900"><?= htmlspecialchars($s['name']) ?></div>
                                     <div class="text-xs text-slate-400">Role: <?= htmlspecialchars($s['role']) ?></div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                                        <?= htmlspecialchars($s['branch_name'] ?? 'Unassigned') ?>
+                                    </span>
                                 </td>
                                 <td class="px-6 py-4 font-mono text-slate-600 text-xs"><?= htmlspecialchars($s['mobile']) ?></td>
                                 <td class="px-6 py-4">
@@ -101,6 +107,15 @@
                 <input type="text" name="name" required maxlength="100" placeholder="Staff Name" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm">
             </div>
             <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Assigned Branch <span class="text-rose-500">*</span></label>
+                <select name="branch_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm">
+                    <option value="">Select Branch...</option>
+                    <?php foreach ($branches as $b): ?>
+                        <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Mobile Number <span class="text-rose-500">*</span></label>
                 <input type="tel" name="mobile" required placeholder="10-15 digits" maxlength="15" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm font-mono">
             </div>
@@ -136,6 +151,15 @@
                 <input type="text" id="edit_staff_name" name="name" required maxlength="100" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm">
             </div>
             <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Assigned Branch <span class="text-rose-500">*</span></label>
+                <select name="branch_id" id="edit_staff_branch_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm">
+                    <option value="">Select Branch...</option>
+                    <?php foreach ($branches as $b): ?>
+                        <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Mobile Number <span class="text-rose-500">*</span></label>
                 <input type="tel" id="edit_staff_mobile" name="mobile" required maxlength="15" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 outline-none text-sm font-mono">
             </div>
@@ -160,6 +184,7 @@
 function openEditStaffModal(staff) {
     document.getElementById('edit_staff_id').value = staff.id;
     document.getElementById('edit_staff_name').value = staff.name;
+    document.getElementById('edit_staff_branch_id').value = staff.branch_id || '';
     document.getElementById('edit_staff_mobile').value = staff.mobile;
     document.getElementById('edit_staff_pin').value = '';
     document.getElementById('edit_staff_is_active').checked = (parseInt(staff.is_active) === 1);

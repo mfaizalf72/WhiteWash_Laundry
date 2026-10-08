@@ -5,16 +5,19 @@ namespace Faizal\LaundryLms\Controllers\Admin;
 
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\Staff;
+use Faizal\LaundryLms\Models\Branch;
 use Faizal\LaundryLms\Helpers\Security;
 
 class StaffController {
     public function index(): void {
-        $search = trim($_GET['search'] ?? '');
+        $search       = trim($_GET['search'] ?? '');
         $staffMembers = Staff::all($search);
+        $branches     = Branch::allActive();
 
         Router::view('admin/staff/index', [
             'title'        => 'Staff Management - Launder',
             'staffMembers' => $staffMembers,
+            'branches'     => $branches,
             'search'       => $search
         ], 'admin');
     }
@@ -61,8 +64,16 @@ class StaffController {
             return;
         }
 
+        $branchId = (int)($_POST['branch_id'] ?? 0);
+        if ($branchId <= 0 || !Branch::findActive($branchId)) {
+            $_SESSION['error'] = "Please select a valid active branch for this staff member.";
+            Router::redirect('/admin/staff');
+            return;
+        }
+
         try {
             Staff::create([
+                'branch_id' => $branchId,
                 'name'      => $name,
                 'mobile'    => $mobile,
                 'pin'       => $pin,
@@ -135,8 +146,16 @@ class StaffController {
             return;
         }
 
+        $branchId = (int)($_POST['branch_id'] ?? 0);
+        if ($branchId <= 0 || !Branch::findActive($branchId)) {
+            $_SESSION['error'] = "Please select a valid active branch for this staff member.";
+            Router::redirect('/admin/staff');
+            return;
+        }
+
         try {
             $data = [
+                'branch_id' => $branchId,
                 'name'      => $name,
                 'mobile'    => $mobile,
                 'is_active' => $isActive

@@ -9,6 +9,15 @@
         </div>
         <div>
             <form action="/laundry-lms/dashboard" method="GET" class="flex flex-wrap items-center gap-2">
+                <select name="branch_id" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:ring-2 focus:ring-slate-900 bg-white">
+                    <option value="">All Branches</option>
+                    <?php foreach ($branches ?? [] as $b): ?>
+                        <option value="<?= (int)$b['id'] ?>" <?= ((int)($selectedBranchId ?? 0) === (int)$b['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
                 <select name="filter" id="dash_filter" onchange="toggleCustomDates('dash')" class="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:ring-2 focus:ring-slate-900">
                     <option value="today" <?= ($range['filter'] === 'today') ? 'selected' : '' ?>>Today</option>
                     <option value="last_7_days" <?= ($range['filter'] === 'last_7_days') ? 'selected' : '' ?>>Last 7 Days</option>
@@ -129,6 +138,7 @@
                 <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
                     <tr>
                         <th class="px-6 py-3">Job ID</th>
+                        <th class="px-6 py-3">Branch</th>
                         <th class="px-6 py-3">Customer</th>
                         <th class="px-6 py-3">Created Date</th>
                         <th class="px-6 py-3">Workflow Status</th>
@@ -140,13 +150,18 @@
                 <tbody class="divide-y divide-slate-100">
                     <?php if (empty($recentOrders)): ?>
                         <tr>
-                            <td colspan="7" class="px-6 py-8 text-center text-slate-400 italic">No orders recorded yet.</td>
+                            <td colspan="8" class="px-6 py-8 text-center text-slate-400 italic">No orders recorded yet.</td>
                         </tr>
                     <?php else: ?>
                         <?php foreach ($recentOrders as $ro): ?>
                             <tr class="hover:bg-slate-50/50">
                                 <td class="px-6 py-3 font-mono font-bold text-slate-900">
                                     <a href="/laundry-lms/orders/show?id=<?= $ro['id'] ?>" class="hover:text-indigo-600"><?= htmlspecialchars($ro['job_id']) ?></a>
+                                </td>
+                                <td class="px-6 py-3 text-xs">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200" title="<?= htmlspecialchars($ro['branch_name'] ?? '') ?>">
+                                        <?= htmlspecialchars($ro['branch_code'] ?? ($ro['branch_name'] ?? 'MAIN')) ?>
+                                    </span>
                                 </td>
                                 <td class="px-6 py-3">
                                     <div class="font-semibold text-slate-800"><?= htmlspecialchars($ro['customer_name']) ?></div>

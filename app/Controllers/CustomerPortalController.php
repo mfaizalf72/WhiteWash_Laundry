@@ -13,6 +13,7 @@ use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
 use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
+use Faizal\LaundryLms\Models\Branch;
 use Faizal\LaundryLms\Models\Notification;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
@@ -107,6 +108,7 @@ class CustomerPortalController {
         $workTypes  = WorkType::all();
         $pricings   = Pricing::all();
         $settings   = Settings::get();
+        $branches   = Branch::allActive();
 
         Router::view('customer/orders/create', [
             'title'     => 'Request Pickup - Launder',
@@ -114,7 +116,8 @@ class CustomerPortalController {
             'items'     => $items,
             'workTypes' => $workTypes,
             'pricings'  => $pricings,
-            'settings'  => $settings
+            'settings'  => $settings,
+            'branches'  => $branches
         ], 'customer');
     }
 
@@ -124,7 +127,28 @@ class CustomerPortalController {
         $deliveryDate     = trim($_POST['delivery_date'] ?? '');
         $userInstructions = trim($_POST['special_instructions'] ?? '');
 
-        // 1. Dates Validation
+        // 1. Branch Validation (Option A: Auto-assign when exactly 1 active branch; require selection when > 1)
+        $activeBranches = Branch::allActive();
+        if (empty($activeBranches)) {
+            $_SESSION['error'] = "No active laundry branch is currently available to service orders.";
+            Router::redirect('/customer/orders/create');
+            return;
+        }
+
+        if (count($activeBranches) === 1) {
+            $selectedBranchId = (int)$activeBranches[0]['id'];
+        } else {
+            $rawBranchId = (int)($_POST['branch_id'] ?? 0);
+            $branch = ($rawBranchId > 0) ? Branch::findActive($rawBranchId) : null;
+            if (!$branch) {
+                $_SESSION['error'] = "Please select a valid servicing branch.";
+                Router::redirect('/customer/orders/create');
+                return;
+            }
+            $selectedBranchId = (int)$branch['id'];
+        }
+
+        // 2. Dates Validation
         if (empty($pickupDate) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $pickupDate)) {
             $_SESSION['error'] = "Please provide a valid pickup date (YYYY-MM-DD).";
             Router::redirect('/customer/orders/create');
@@ -255,6 +279,7 @@ class CustomerPortalController {
         try {
             $orderData = [
                 'customer_id'          => $customerId,
+                'branch_id'            => $selectedBranchId,
                 'status'               => 'pickup_request',
                 'total_amount'         => $totalAmount,
                 'amount_paid'          => 0.00,

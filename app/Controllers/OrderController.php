@@ -13,11 +13,46 @@ use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\Payment;
 use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
+use Faizal\LaundryLms\Models\Branch;
+use Faizal\LaundryLms\Models\User;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
 use Faizal\LaundryLms\Services\Pdf\InvoicePdfService;
 
 class OrderController {
+    /**
+     * Get the authenticated staff user's assigned branch ID.
+     */
+    private function getStaffBranchId(): int {
+        $staffBranchId = (int)($_SESSION['user_branch_id'] ?? 0);
+        if ($staffBranchId <= 0 && isset($_SESSION['user_id'])) {
+            $user = User::find((int)$_SESSION['user_id']);
+            $staffBranchId = (int)($user['branch_id'] ?? 0);
+            $_SESSION['user_branch_id'] = $staffBranchId;
+        }
+        return $staffBranchId;
+    }
+
+    /**
+     * Strict Server-Side Staff Branch Isolation Assertion.
+     * Prevents staff from viewing, updating, claiming, or mutating orders belonging to another branch.
+     */
+    private function assertStaffBranchAccess(array $order): void {
+        $role = (string)($_SESSION['user_role'] ?? '');
+        if ($role === 'staff') {
+            $staffBranchId = $this->getStaffBranchId();
+            if ((int)($order['branch_id'] ?? 0) !== $staffBranchId) {
+                http_response_code(403);
+                echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                     "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
+                     "<p style='color: #475569;'>You are not authorized to view or perform actions on orders belonging to another branch.</p>" .
+                     "<p><a href='/laundry-lms/orders' style='color: #2563eb; text-decoration: underline;'>Return to Orders Directory</a></p>" .
+                     "</div>";
+                exit;
+            }
+        }
+    }
+
     public function index(): void {
         $status        = trim($_GET['status'] ?? '');
         $search        = trim($_GET['search'] ?? '');
@@ -34,20 +69,41 @@ class OrderController {
             'payment_due'    => $paymentDue
         ];
 
+        $role = (string)($_SESSION['user_role'] ?? '');
+        $selectedBranchId = null;
+
+        if ($role === 'staff') {
+            // Staff is strictly locked to their assigned branch - cannot be overridden by GET parameters
+            $staffBranchId = $this->getStaffBranchId();
+            $filters['branch_id'] = $staffBranchId;
+            $selectedBranchId = $staffBranchId;
+        } else {
+            // Admin: can filter by GET branch_id if provided
+            $rawBranch = (int)($_GET['branch_id'] ?? 0);
+            if ($rawBranch > 0) {
+                $filters['branch_id'] = $rawBranch;
+                $selectedBranchId = $rawBranch;
+            }
+        }
+
         $paginatedData = Order::allPaginated($filters, $page, 20);
-        $layout        = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
+        $branches      = Branch::allActive();
+        $layout        = ($role === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/index', [
-            'title'        => 'Orders Directory - Launder',
-            'orders'       => $paginatedData['orders'],
-            'totalOrders'  => $paginatedData['total_orders'],
-            'page'         => $paginatedData['page'],
-            'totalPages'   => $paginatedData['total_pages'],
-            'status'       => $status,
-            'search'       => $search,
-            'pickupToday'  => $pickupToday,
-            'deliveryToday'=> $deliveryToday,
-            'paymentDue'   => $paymentDue
+            'title'            => 'Orders Directory - Launder',
+            'orders'           => $paginatedData['orders'],
+            'totalOrders'      => $paginatedData['total_orders'],
+            'page'             => $paginatedData['page'],
+            'totalPages'       => $paginatedData['total_pages'],
+            'status'           => $status,
+            'search'           => $search,
+            'pickupToday'      => $pickupToday,
+            'deliveryToday'    => $deliveryToday,
+            'paymentDue'       => $paymentDue,
+            'branches'         => $branches,
+            'selectedBranchId' => $selectedBranchId,
+            'isStaff'          => ($role === 'staff')
         ], $layout);
     }
 
@@ -56,14 +112,20 @@ class OrderController {
         $items     = LaundryItem::all();
         $workTypes = WorkType::all();
         $pricings  = Pricing::all();
+        $branches  = Branch::allActive();
+        $role      = (string)($_SESSION['user_role'] ?? 'admin');
+        $layout    = ($role === 'staff') ? 'staff' : 'admin';
 
         Router::view('admin/orders/create', [
-            'title'     => 'Create New Order - Launder',
-            'customers' => $customers,
-            'items'     => $items,
-            'workTypes' => $workTypes,
-            'pricings'  => $pricings
-        ], 'admin');
+            'title'         => 'Create New Order - Launder',
+            'customers'     => $customers,
+            'items'         => $items,
+            'workTypes'     => $workTypes,
+            'pricings'      => $pricings,
+            'branches'      => $branches,
+            'userRole'      => $role,
+            'staffBranchId' => $this->getStaffBranchId()
+        ], $layout);
     }
 
     public function store(): void {
@@ -218,8 +280,32 @@ class OrderController {
 
         // 5. Transactional Order Creation
         try {
+            $userRole = (string)($_SESSION['user_role'] ?? 'admin');
+            if ($userRole === 'staff') {
+                $branchId = $this->getStaffBranchId();
+                if ($branchId <= 0) {
+                    $_SESSION['error'] = "You are not assigned to an active branch. Please contact an administrator.";
+                    Router::redirect('/orders/create');
+                    return;
+                }
+            } else {
+                $rawBranch = (int)($_POST['branch_id'] ?? 0);
+                if ($rawBranch > 0) {
+                    $branch = Branch::findActive($rawBranch);
+                    if (!$branch) {
+                        $_SESSION['error'] = "Selected branch is invalid or inactive.";
+                        Router::redirect('/orders/create');
+                        return;
+                    }
+                    $branchId = $rawBranch;
+                } else {
+                    $branchId = Branch::getDefaultId();
+                }
+            }
+
             $orderData = [
                 'customer_id'          => $customerId,
+                'branch_id'            => $branchId,
                 'status'               => 'pickup_request',
                 'total_amount'         => $totalAmount,
                 'amount_paid'          => 0.00,
@@ -250,6 +336,8 @@ class OrderController {
             Router::redirect('/orders');
             return;
         }
+
+        $this->assertStaffBranchAccess($order);
 
         $orderItems = Order::getItems($id);
         $extracted  = OrderMetadata::extract($order['special_instructions']);
@@ -298,6 +386,14 @@ class OrderController {
             return;
         }
 
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
+
         try {
             Order::updateStatus($orderId, $newStatus, $userId, $userRole);
             $_SESSION['success'] = "Order status updated successfully to '" . str_replace('_', ' ', $newStatus) . "'.";
@@ -329,6 +425,14 @@ class OrderController {
             return;
         }
 
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/staff/dashboard');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
+
         try {
             Order::claimOrder($orderId, $userId);
             $_SESSION['success'] = "Order #{$orderId} claimed successfully!";
@@ -352,6 +456,14 @@ class OrderController {
             Router::redirect('/orders');
             return;
         }
+
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
 
         try {
             $res = Payment::create($_POST, $userId);
@@ -384,6 +496,14 @@ class OrderController {
             Router::redirect('/orders');
             return;
         }
+
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
 
         $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
         if (!str_starts_with($redirect, '/')) {
@@ -452,6 +572,14 @@ class OrderController {
             return;
         }
 
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
+
         try {
             Order::submitInspection($orderId, $_POST, $userId, $userRole);
             $_SESSION['success'] = "Inspection submitted and final price calculated successfully.";
@@ -511,6 +639,14 @@ class OrderController {
             return;
         }
 
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
+
         try {
             Order::cancel($orderId, $userId, $userRole, $reason);
             $_SESSION['success'] = "Order #{$orderId} cancelled successfully.";
@@ -539,6 +675,14 @@ class OrderController {
             return;
         }
 
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+        $this->assertStaffBranchAccess($order);
+
         try {
             Order::reschedule($orderId, $userId, $userRole, $pickupDate, $deliveryDate, $reason);
             $_SESSION['success'] = "Schedule for order #{$orderId} updated successfully.";
@@ -566,6 +710,8 @@ class OrderController {
                  "</div>";
             exit;
         }
+
+        $this->assertStaffBranchAccess($order);
 
         $orderItems = Order::getItems($id);
         $extracted  = OrderMetadata::extract($order['special_instructions']);
@@ -611,6 +757,8 @@ class OrderController {
                  "</div>";
             exit;
         }
+
+        $this->assertStaffBranchAccess($order);
 
         $orderItems    = Order::getItems($id);
         $extracted     = OrderMetadata::extract($order['special_instructions']);

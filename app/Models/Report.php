@@ -49,8 +49,15 @@ class Report {
         ];
     }
 
-    public static function getKpis(string $start, string $end): array {
+    public static function getKpis(string $start, string $end, ?int $branchId = null): array {
         $db = Database::getConnection();
+        $params = ['start' => $start, 'end' => $end];
+        $branchClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $branchClause = " AND branch_id = :branch_id";
+            $params['branch_id'] = $branchId;
+        }
+
         $sql = "SELECT 
                     COUNT(id) AS total_orders,
                     COALESCE(SUM(total_amount), 0.00) AS total_order_value,
@@ -58,13 +65,13 @@ class Report {
                     SUM(CASE WHEN payment_status = 'unpaid' THEN 1 ELSE 0 END) AS unpaid_count,
                     SUM(CASE WHEN payment_status = 'partial' THEN 1 ELSE 0 END) AS partial_count,
                     SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) AS paid_count,
-                    SUM(CASE WHEN status != 'completed' THEN 1 ELSE 0 END) AS active_orders_count,
+                    SUM(CASE WHEN status != 'completed' AND status != 'cancelled' THEN 1 ELSE 0 END) AS active_orders_count,
                     SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_orders_count
                 FROM orders
-                WHERE created_at >= :start AND created_at <= :end";
+                WHERE created_at >= :start AND created_at <= :end {$branchClause}";
 
         $stmt = $db->prepare($sql);
-        $stmt->execute(['start' => $start, 'end' => $end]);
+        $stmt->execute($params);
         $data = $stmt->fetch() ?: [];
 
         $totalVal   = round((float)($data['total_order_value'] ?? 0), 2);
@@ -84,20 +91,27 @@ class Report {
         ];
     }
 
-    public static function getStatusSummary(string $start, string $end): array {
+    public static function getStatusSummary(string $start, string $end, ?int $branchId = null): array {
         $statuses = [
             'pickup_request', 'accepted', 'picked_up', 'inspection_completed',
             'price_confirmed', 'processing', 'ready', 'out_for_delivery', 'delivered', 'completed'
         ];
 
         $db = Database::getConnection();
+        $params = ['start' => $start, 'end' => $end];
+        $branchClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $branchClause = " AND branch_id = :branch_id";
+            $params['branch_id'] = $branchId;
+        }
+
         $sql = "SELECT status, COUNT(id) AS order_count, COALESCE(SUM(total_amount), 0.00) AS total_val
                 FROM orders
-                WHERE created_at >= :start AND created_at <= :end
+                WHERE created_at >= :start AND created_at <= :end {$branchClause}
                 GROUP BY status";
 
         $stmt = $db->prepare($sql);
-        $stmt->execute(['start' => $start, 'end' => $end]);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll();
 
         $mapped = [];
@@ -120,7 +134,7 @@ class Report {
         return $summary;
     }
 
-    public static function getOperationalWorkload(): array {
+    public static function getOperationalWorkload(?int $branchId = null): array {
         $activeStatuses = [
             'pickup_request'       => 'Pickup Requests Pending',
             'accepted'             => 'Accepted (Awaiting Pickup)',
@@ -132,12 +146,20 @@ class Report {
         ];
 
         $db = Database::getConnection();
+        $params = [];
+        $branchClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $branchClause = " AND branch_id = :branch_id";
+            $params['branch_id'] = $branchId;
+        }
+
         $sql = "SELECT status, COUNT(id) AS order_count
                 FROM orders
-                WHERE status != 'completed'
+                WHERE status != 'completed' AND status != 'cancelled' {$branchClause}
                 GROUP BY status";
 
-        $stmt = $db->query($sql);
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll();
 
         $counts = [];
@@ -157,15 +179,27 @@ class Report {
         return $workload;
     }
 
-    public static function getRecentOrders(int $limit = 10): array {
+    public static function getRecentOrders(int $limit = 10, ?int $branchId = null): array {
         $db = Database::getConnection();
-        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile
+        $params = [];
+        $branchClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $branchClause = " WHERE o.branch_id = :branch_id";
+            $params['branch_id'] = $branchId;
+        }
+
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, b.name AS branch_name, b.code AS branch_code
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
+                LEFT JOIN branches b ON o.branch_id = b.id
+                {$branchClause}
                 ORDER BY o.id DESC
                 LIMIT :limit";
 
         $stmt = $db->prepare($sql);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue(':' . $k, $v);
+        }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
         return $stmt->fetchAll();

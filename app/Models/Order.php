@@ -9,6 +9,7 @@ use Faizal\LaundryLms\Models\Settings;
 use Faizal\LaundryLms\Models\LaundryItem;
 use Faizal\LaundryLms\Models\WorkType;
 use Faizal\LaundryLms\Models\Pricing;
+use Faizal\LaundryLms\Models\Branch;
 use Faizal\LaundryLms\Services\Notification\NotificationService;
 use PDO;
 
@@ -48,13 +49,19 @@ class Order {
         try {
             $jobId = !empty($orderData['job_id']) ? $orderData['job_id'] : self::generateJobId();
 
+            $branchId = !empty($orderData['branch_id']) ? (int)$orderData['branch_id'] : Branch::getDefaultId();
+            if ($branchId <= 0 || !Branch::findActive($branchId)) {
+                throw new \InvalidArgumentException("A valid active branch is required for this order.");
+            }
+
             $sql = "INSERT INTO orders 
-                    (job_id, customer_id, staff_id, status, total_amount, amount_paid, payment_status, pickup_date, delivery_date, special_instructions)
+                    (job_id, branch_id, customer_id, staff_id, status, total_amount, amount_paid, payment_status, pickup_date, delivery_date, special_instructions)
                     VALUES 
-                    (:job_id, :customer_id, :staff_id, :status, :total_amount, :amount_paid, :payment_status, :pickup_date, :delivery_date, :special_instructions)";
+                    (:job_id, :branch_id, :customer_id, :staff_id, :status, :total_amount, :amount_paid, :payment_status, :pickup_date, :delivery_date, :special_instructions)";
 
             $stmt = $db->prepare($sql);
             $stmt->bindValue(':job_id', $jobId);
+            $stmt->bindValue(':branch_id', $branchId, PDO::PARAM_INT);
             $stmt->bindValue(':customer_id', $orderData['customer_id'], PDO::PARAM_INT);
             if ($staffUserId !== null && $staffUserId > 0) {
                 $stmt->bindValue(':staff_id', $staffUserId, PDO::PARAM_INT);
@@ -186,10 +193,12 @@ class Order {
 
     public static function find(int $id): ?array {
         $db = Database::getConnection();
-        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
+                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 LEFT JOIN users s ON o.staff_id = s.id
+                LEFT JOIN branches b ON o.branch_id = b.id
                 WHERE o.id = :id
                 LIMIT 1";
 
@@ -1117,31 +1126,38 @@ class Order {
 
     public static function getCustomerOrders(int $customerId, string $filter = 'all'): array {
         $db = Database::getConnection();
-        $conditions = ["customer_id = :cid"];
+        $conditions = ["o.customer_id = :cid"];
         $params = ['cid' => $customerId];
 
         if ($filter === 'active') {
-            $conditions[] = "status NOT IN ('completed', 'cancelled')";
+            $conditions[] = "o.status NOT IN ('completed', 'cancelled')";
         } elseif ($filter === 'completed') {
-            $conditions[] = "status = 'completed'";
+            $conditions[] = "o.status = 'completed'";
         } elseif ($filter === 'cancelled') {
-            $conditions[] = "status = 'cancelled'";
+            $conditions[] = "o.status = 'cancelled'";
         } elseif ($filter === 'pending') {
-            $conditions[] = "(payment_status != 'paid' OR amount_paid < total_amount) AND status != 'cancelled'";
+            $conditions[] = "(o.payment_status != 'paid' OR o.amount_paid < o.total_amount) AND o.status != 'cancelled'";
         }
 
         $where = implode(" AND ", $conditions);
-        $stmt = $db->prepare("SELECT * FROM orders WHERE {$where} ORDER BY id DESC");
+        $sql = "SELECT o.*, b.name AS branch_name, b.code AS branch_code
+                FROM orders o
+                LEFT JOIN branches b ON o.branch_id = b.id
+                WHERE {$where}
+                ORDER BY o.id DESC";
+        $stmt = $db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
     public static function findForCustomer(int $orderId, int $customerId): ?array {
         $db = Database::getConnection();
-        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
+                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 LEFT JOIN users s ON o.staff_id = s.id
+                LEFT JOIN branches b ON o.branch_id = b.id
                 WHERE o.id = :id AND o.customer_id = :customer_id
                 LIMIT 1";
 
@@ -1151,44 +1167,66 @@ class Order {
         return $order ?: null;
     }
 
-    public static function getStaffOperationalQueues(): array {
+    public static function getStaffOperationalQueues(?int $branchId = null): array {
         $db = Database::getConnection();
+        $branchClause = "";
+        $params = [];
+        if ($branchId !== null) {
+            $branchClause = " AND o.branch_id = :branch_id ";
+            $params['branch_id'] = $branchId;
+        }
 
         // 1. Pickup Requests Queue
-        $sqlPickup = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+        $sqlPickup = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
+                             b.name AS branch_name, b.code AS branch_code
                       FROM orders o
                       JOIN users c ON o.customer_id = c.id
                       LEFT JOIN users s ON o.staff_id = s.id
-                      WHERE o.status = 'pickup_request'
+                      LEFT JOIN branches b ON o.branch_id = b.id
+                      WHERE o.status = 'pickup_request' {$branchClause}
                       ORDER BY o.id DESC";
-        $pickups = $db->query($sqlPickup)->fetchAll();
+        $stmtPickup = $db->prepare($sqlPickup);
+        $stmtPickup->execute($params);
+        $pickups = $stmtPickup->fetchAll();
 
         // 2. In-Shop Processing Queue
-        $sqlProcessing = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+        $sqlProcessing = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name,
+                                 b.name AS branch_name, b.code AS branch_code
                           FROM orders o
                           JOIN users c ON o.customer_id = c.id
                           LEFT JOIN users s ON o.staff_id = s.id
-                          WHERE o.status IN ('accepted', 'picked_up', 'inspection_completed', 'price_confirmed', 'processing')
+                          LEFT JOIN branches b ON o.branch_id = b.id
+                          WHERE o.status IN ('accepted', 'picked_up', 'inspection_completed', 'price_confirmed', 'processing') {$branchClause}
                           ORDER BY o.id DESC";
-        $processing = $db->query($sqlProcessing)->fetchAll();
+        $stmtProcessing = $db->prepare($sqlProcessing);
+        $stmtProcessing->execute($params);
+        $processing = $stmtProcessing->fetchAll();
 
         // 3. Ready / Delivery Queue
-        $sqlDelivery = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name
+        $sqlDelivery = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
+                               b.name AS branch_name, b.code AS branch_code
                         FROM orders o
                         JOIN users c ON o.customer_id = c.id
                         LEFT JOIN users s ON o.staff_id = s.id
-                        WHERE o.status IN ('ready', 'out_for_delivery')
+                        LEFT JOIN branches b ON o.branch_id = b.id
+                        WHERE o.status IN ('ready', 'out_for_delivery') {$branchClause}
                         ORDER BY o.id DESC";
-        $delivery = $db->query($sqlDelivery)->fetchAll();
+        $stmtDelivery = $db->prepare($sqlDelivery);
+        $stmtDelivery->execute($params);
+        $delivery = $stmtDelivery->fetchAll();
 
         // 4. Payment Due Queue (Delivered & Unsettled)
-        $sqlPaymentDue = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+        $sqlPaymentDue = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name,
+                                 b.name AS branch_name, b.code AS branch_code
                           FROM orders o
                           JOIN users c ON o.customer_id = c.id
                           LEFT JOIN users s ON o.staff_id = s.id
-                          WHERE o.status = 'delivered' AND (o.payment_status != 'paid' OR o.amount_paid < o.total_amount)
+                          LEFT JOIN branches b ON o.branch_id = b.id
+                          WHERE o.status = 'delivered' AND (o.payment_status != 'paid' OR o.amount_paid < o.total_amount) {$branchClause}
                           ORDER BY o.id DESC";
-        $paymentDue = $db->query($sqlPaymentDue)->fetchAll();
+        $stmtPaymentDue = $db->prepare($sqlPaymentDue);
+        $stmtPaymentDue->execute($params);
+        $paymentDue = $stmtPaymentDue->fetchAll();
 
         return [
             'pickup_requests' => $pickups,
@@ -1237,10 +1275,15 @@ class Order {
             $conditions[] = "(o.payment_status != 'paid' OR o.amount_paid < o.total_amount)";
         }
 
+        if (!empty($filters['branch_id'])) {
+            $conditions[] = "o.branch_id = :branch_id";
+            $params['branch_id'] = (int)$filters['branch_id'];
+        }
+
         $whereClause = implode(" AND ", $conditions);
 
         // Total count query
-        $countSql = "SELECT COUNT(*) FROM orders o JOIN users c ON o.customer_id = c.id WHERE {$whereClause}";
+        $countSql = "SELECT COUNT(*) FROM orders o JOIN users c ON o.customer_id = c.id LEFT JOIN branches b ON o.branch_id = b.id WHERE {$whereClause}";
         $countStmt = $db->prepare($countSql);
         $countStmt->execute($params);
         $totalOrders = (int)$countStmt->fetchColumn();
@@ -1248,10 +1291,12 @@ class Order {
         $totalPages = max(1, (int)ceil($totalOrders / $limit));
 
         // Paginated rows query
-        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name,
+                       b.name AS branch_name, b.code AS branch_code
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 LEFT JOIN users s ON o.staff_id = s.id
+                LEFT JOIN branches b ON o.branch_id = b.id
                 WHERE {$whereClause}
                 ORDER BY o.id DESC
                 LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
@@ -1275,7 +1320,7 @@ class Order {
 
         try {
             // Lock order row
-            $stmt = $db->prepare("SELECT id, staff_id, status FROM orders WHERE id = :id FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, branch_id, staff_id, status FROM orders WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $orderId]);
             $order = $stmt->fetch();
 
@@ -1287,6 +1332,15 @@ class Order {
             if ($order['status'] === 'cancelled') {
                 $db->rollBack();
                 throw new \DomainException("Cannot claim a cancelled order.");
+            }
+
+            // Staff branch isolation check
+            $staff = Staff::find($staffUserId);
+            if ($staff && !empty($staff['branch_id'])) {
+                if ((int)$order['branch_id'] !== (int)$staff['branch_id']) {
+                    $db->rollBack();
+                    throw new \DomainException("Staff cannot claim orders belonging to another branch.");
+                }
             }
 
             if (!empty($order['staff_id'])) {

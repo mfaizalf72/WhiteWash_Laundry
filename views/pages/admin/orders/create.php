@@ -26,7 +26,7 @@ $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
             <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">1. Customer & Scheduling Details</h3>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="md:col-span-2">
+                <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1">Select Customer <span class="text-rose-500">*</span></label>
                     <select name="customer_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900">
                         <option value="">Select Customer...</option>
@@ -34,6 +34,27 @@ $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
                             <option value="<?= $c['id'] ?>"><?= htmlspecialchars($c['name']) ?> (<?= htmlspecialchars($c['mobile']) ?>)</option>
                         <?php endforeach; ?>
                     </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Servicing Branch <span class="text-rose-500">*</span></label>
+                    <?php if (($userRole ?? '') === 'staff'): ?>
+                        <?php
+                            $assignedBranch = null;
+                            foreach ($branches ?? [] as $b) {
+                                if ((int)$b['id'] === (int)($staffBranchId ?? 0)) { $assignedBranch = $b; break; }
+                            }
+                        ?>
+                        <input type="text" readonly value="<?= htmlspecialchars(($assignedBranch['name'] ?? 'Branch') . ' (' . ($assignedBranch['code'] ?? '') . ')') ?>"
+                               class="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 text-sm cursor-not-allowed font-medium">
+                        <input type="hidden" name="branch_id" value="<?= (int)($staffBranchId ?? 0) ?>">
+                    <?php else: ?>
+                        <select name="branch_id" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 bg-white">
+                            <?php foreach ($branches ?? [] as $b): ?>
+                                <option value="<?= (int)$b['id'] ?>"><?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)</option>
+                            <?php endforeach; ?>
+                        </select>
+                    <?php endif; ?>
                 </div>
 
                 <div>

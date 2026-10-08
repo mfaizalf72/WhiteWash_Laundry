@@ -39,6 +39,25 @@ $freePickupLimit = (float)($settings['free_pickup_limit'] ?? 0);
     <form action="/laundry-lms/customer/orders/create" method="POST" id="customerOrderForm" class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
         <?= Csrf::field() ?>
 
+        <?php if (!empty($branches) && count($branches) > 1): ?>
+        <!-- Servicing Branch Selection -->
+        <div class="space-y-4">
+            <h3 class="text-base font-bold text-slate-800 font-display border-b border-slate-100 pb-2">Servicing Branch</h3>
+            <div>
+                <label for="branch_id" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Select Branch <span class="text-rose-500">*</span></label>
+                <select id="branch_id" name="branch_id" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white">
+                    <option value="">-- Choose a branch near you --</option>
+                    <?php foreach ($branches as $branch): ?>
+                        <option value="<?= (int)$branch['id'] ?>">
+                            <?= htmlspecialchars($branch['name']) ?> (<?= htmlspecialchars($branch['code']) ?>)<?= !empty($branch['address']) ? ' — ' . htmlspecialchars($branch['address']) : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-[11px] text-slate-500 mt-1">Select the laundry branch that will pick up, clean, and deliver your garments.</p>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Step 1: Schedule Dates -->
         <div class="space-y-4">
             <h3 class="text-base font-bold text-slate-800 font-display border-b border-slate-100 pb-2">1. Schedule Dates</h3>

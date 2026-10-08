@@ -14,20 +14,24 @@ class Staff {
         $db = Database::getConnection();
         if (!empty($search)) {
             $term = '%' . trim($search) . '%';
-            $sql = "SELECT id, role, name, mobile, is_active, created_at, updated_at
-                    FROM users
-                    WHERE role = 'staff' AND deleted_at IS NULL AND (name LIKE :term1 OR mobile LIKE :term2)
-                    ORDER BY name ASC";
+            $sql = "SELECT u.id, u.role, u.branch_id, u.name, u.mobile, u.is_active, u.created_at, u.updated_at,
+                           b.name AS branch_name, b.code AS branch_code
+                    FROM users u
+                    LEFT JOIN branches b ON u.branch_id = b.id
+                    WHERE u.role = 'staff' AND u.deleted_at IS NULL AND (u.name LIKE :term1 OR u.mobile LIKE :term2)
+                    ORDER BY u.name ASC";
             $stmt = $db->prepare($sql);
             $stmt->execute(['term1' => $term, 'term2' => $term]);
         } else {
-            $sql = "SELECT id, role, name, mobile, is_active, created_at, updated_at
-                    FROM users
-                    WHERE role = 'staff' AND deleted_at IS NULL
-                    ORDER BY name ASC";
+            $sql = "SELECT u.id, u.role, u.branch_id, u.name, u.mobile, u.is_active, u.created_at, u.updated_at,
+                           b.name AS branch_name, b.code AS branch_code
+                    FROM users u
+                    LEFT JOIN branches b ON u.branch_id = b.id
+                    WHERE u.role = 'staff' AND u.deleted_at IS NULL
+                    ORDER BY u.name ASC";
             $stmt = $db->query($sql);
         }
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -35,12 +39,14 @@ class Staff {
      */
     public static function find(int $id): ?array {
         $db = Database::getConnection();
-        $stmt = $db->prepare("SELECT id, role, name, mobile, is_active, created_at, updated_at 
-                              FROM users 
-                              WHERE id = :id AND role = 'staff' AND deleted_at IS NULL 
+        $stmt = $db->prepare("SELECT u.id, u.role, u.branch_id, u.name, u.mobile, u.is_active, u.created_at, u.updated_at,
+                                     b.name AS branch_name, b.code AS branch_code
+                              FROM users u
+                              LEFT JOIN branches b ON u.branch_id = b.id
+                              WHERE u.id = :id AND u.role = 'staff' AND u.deleted_at IS NULL
                               LIMIT 1");
         $stmt->execute(['id' => $id]);
-        $staff = $stmt->fetch();
+        $staff = $stmt->fetch(PDO::FETCH_ASSOC);
         return $staff ?: null;
     }
 
@@ -50,13 +56,13 @@ class Staff {
     public static function findByMobile(string $mobile, ?int $excludeId = null): ?array {
         $db = Database::getConnection();
         if ($excludeId !== null) {
-            $stmt = $db->prepare("SELECT id, role, name, mobile FROM users WHERE mobile = :mobile AND id != :exclude_id AND deleted_at IS NULL LIMIT 1");
+            $stmt = $db->prepare("SELECT id, role, branch_id, name, mobile FROM users WHERE mobile = :mobile AND id != :exclude_id AND deleted_at IS NULL LIMIT 1");
             $stmt->execute(['mobile' => trim($mobile), 'exclude_id' => $excludeId]);
         } else {
-            $stmt = $db->prepare("SELECT id, role, name, mobile FROM users WHERE mobile = :mobile AND deleted_at IS NULL LIMIT 1");
+            $stmt = $db->prepare("SELECT id, role, branch_id, name, mobile FROM users WHERE mobile = :mobile AND deleted_at IS NULL LIMIT 1");
             $stmt->execute(['mobile' => trim($mobile)]);
         }
-        $user = $stmt->fetch();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
         return $user ?: null;
     }
 
@@ -68,10 +74,16 @@ class Staff {
         $pin = trim($data['pin'] ?? '');
         $pinHash = password_hash($pin, PASSWORD_DEFAULT);
 
-        $sql = "INSERT INTO users (role, name, mobile, pin_hash, is_active)
-                VALUES ('staff', :name, :mobile, :pin_hash, :is_active)";
+        $branchId = !empty($data['branch_id']) ? (int)$data['branch_id'] : Branch::getDefaultId();
+        if ($branchId <= 0 || !Branch::findActive($branchId)) {
+            throw new \InvalidArgumentException("A valid active branch assignment is required for staff.");
+        }
+
+        $sql = "INSERT INTO users (role, branch_id, name, mobile, pin_hash, is_active)
+                VALUES ('staff', :branch_id, :name, :mobile, :pin_hash, :is_active)";
         $stmt = $db->prepare($sql);
         $stmt->execute([
+            'branch_id' => $branchId,
             'name'      => trim($data['name'] ?? ''),
             'mobile'    => trim($data['mobile'] ?? ''),
             'pin_hash'  => $pinHash,
@@ -85,8 +97,19 @@ class Staff {
      */
     public static function update(int $id, array $data): bool {
         $db = Database::getConnection();
+        $existing = self::find($id);
+        if (!$existing) {
+            return false;
+        }
+
+        $branchId = isset($data['branch_id']) ? (int)$data['branch_id'] : (int)($existing['branch_id'] ?? Branch::getDefaultId());
+        if ($branchId <= 0 || !Branch::findActive($branchId)) {
+            throw new \InvalidArgumentException("A valid active branch assignment is required.");
+        }
+
         $params = [
             'id'        => $id,
+            'branch_id' => $branchId,
             'name'      => trim($data['name'] ?? ''),
             'mobile'    => trim($data['mobile'] ?? ''),
             'is_active' => isset($data['is_active']) ? (int)$data['is_active'] : 1
@@ -94,12 +117,12 @@ class Staff {
 
         if (!empty($data['pin'])) {
             $sql = "UPDATE users
-                    SET name = :name, mobile = :mobile, pin_hash = :pin_hash, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
+                    SET branch_id = :branch_id, name = :name, mobile = :mobile, pin_hash = :pin_hash, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id AND role = 'staff' AND deleted_at IS NULL";
             $params['pin_hash'] = password_hash(trim($data['pin']), PASSWORD_DEFAULT);
         } else {
             $sql = "UPDATE users
-                    SET name = :name, mobile = :mobile, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
+                    SET branch_id = :branch_id, name = :name, mobile = :mobile, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
                     WHERE id = :id AND role = 'staff' AND deleted_at IS NULL";
         }
 

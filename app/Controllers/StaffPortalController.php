@@ -19,11 +19,19 @@ class StaffPortalController {
             return;
         }
 
-        $queues = Order::getStaffOperationalQueues();
+        $staffBranchId = (int)($_SESSION['user_branch_id'] ?? 0);
+        if ($staffBranchId <= 0 && $userId > 0) {
+            $user = \Faizal\LaundryLms\Models\User::find($userId);
+            $staffBranchId = (int)($user['branch_id'] ?? 0);
+            $_SESSION['user_branch_id'] = $staffBranchId;
+        }
+
+        $queues = Order::getStaffOperationalQueues($staffBranchId);
 
         Router::view('staff/dashboard', [
-            'title'  => 'Staff Operations Dashboard - Launder',
-            'queues' => $queues
+            'title'         => 'Staff Operations Dashboard - Launder',
+            'queues'        => $queues,
+            'staffBranchId' => $staffBranchId
         ], 'staff');
     }
 }
