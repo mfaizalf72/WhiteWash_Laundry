@@ -62,6 +62,7 @@ $router->get('/customer/dashboard', 'Faizal\LaundryLms\Controllers\CustomerPorta
 $router->get('/customer/orders', 'Faizal\LaundryLms\Controllers\CustomerPortalController@orders', $customerAuth);
 $router->get('/customer/orders/show', 'Faizal\LaundryLms\Controllers\CustomerPortalController@showOrder', $customerAuth);
 $router->get('/customer/orders/print', 'Faizal\LaundryLms\Controllers\CustomerPortalController@printReceipt', $customerAuth);
+$router->get('/customer/orders/pdf', 'Faizal\LaundryLms\Controllers\CustomerPortalController@downloadPdf', $customerAuth);
 $router->post('/customer/orders/approve-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
 $router->post('/customer/orders/approve', 'Faizal\LaundryLms\Controllers\CustomerPortalController@approvePrice', $customerAuthCsrf);
 $router->post('/customer/orders/reject-price', 'Faizal\LaundryLms\Controllers\CustomerPortalController@rejectPrice', $customerAuthCsrf);
@@ -112,6 +113,7 @@ $router->get('/orders/create', 'Faizal\LaundryLms\Controllers\OrderController@cr
 $router->post('/orders', 'Faizal\LaundryLms\Controllers\OrderController@store', $authRoleCsrf);
 $router->get('/orders/show', 'Faizal\LaundryLms\Controllers\OrderController@show', $authRole);
 $router->get('/orders/print', 'Faizal\LaundryLms\Controllers\OrderController@printJobCard', $authRole);
+$router->get('/orders/pdf', 'Faizal\LaundryLms\Controllers\OrderController@downloadPdf', $authRole);
 $router->post('/orders/status', 'Faizal\LaundryLms\Controllers\OrderController@updateStatus', $authRoleCsrf);
 $router->post('/orders/payment', 'Faizal\LaundryLms\Controllers\OrderController@recordPayment', $authRoleCsrf);
 $router->post('/orders/refund', 'Faizal\LaundryLms\Controllers\OrderController@processRefund', $authRoleCsrf);

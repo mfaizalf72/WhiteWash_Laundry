@@ -17,6 +17,7 @@ use Faizal\LaundryLms\Models\Notification;
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
+use Faizal\LaundryLms\Services\Pdf\InvoicePdfService;
 
 class CustomerPortalController {
 
@@ -919,5 +920,55 @@ class CustomerPortalController {
             : "All notifications are already marked as read.";
 
         Router::redirect('/customer/notifications');
+    }
+
+    /**
+     * Generate and stream A4 PDF invoice/receipt for customer's own order.
+     */
+    public function downloadPdf(): void {
+        $customerId = (int)($_SESSION['user_id'] ?? 0);
+        $orderId    = (int)($_GET['id'] ?? 0);
+
+        if ($orderId <= 0) {
+            http_response_code(403);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
+                 "<p style='color: #475569;'>Invalid order ID specified.</p>" .
+                 "<p><a href='/laundry-lms/customer/orders' style='color: #2563eb; text-decoration: underline;'>Return to My Orders</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        // Strict Server-Side Customer Ownership Check via Database
+        $order = Order::findForCustomer($orderId, $customerId);
+
+        if (!$order) {
+            http_response_code(403);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
+                 "<p style='color: #475569;'>Access denied: You are not authorized to view or download this invoice.</p>" .
+                 "<p><a href='/laundry-lms/customer/orders' style='color: #2563eb; text-decoration: underline;'>Return to My Orders</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        $orderItems    = Order::getItems($orderId);
+        $extracted     = OrderMetadata::extract($order['special_instructions']);
+        $history       = Order::getStatusHistory($orderId);
+        $payments      = Payment::getByOrderId($orderId);
+        $refunds       = Refund::getByOrderId($orderId);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($orderId);
+        $settings      = Settings::get();
+
+        $download = (isset($_GET['download']) && (string)$_GET['download'] === '1');
+
+        ob_start();
+        $mode         = 'receipt';
+        $customerNote = $extracted['customer_note'];
+        $metadata     = $extracted['metadata'];
+        require __DIR__ . '/../../views/pages/orders/invoice_pdf.php';
+        $html = (string)ob_get_clean();
+
+        InvoicePdfService::stream($html, (string)($order['job_id'] ?? 'Order'), $download);
     }
 }

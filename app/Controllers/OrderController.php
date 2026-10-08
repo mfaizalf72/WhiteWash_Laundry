@@ -15,6 +15,7 @@ use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
+use Faizal\LaundryLms\Services\Pdf\InvoicePdfService;
 
 class OrderController {
     public function index(): void {
@@ -592,5 +593,42 @@ class OrderController {
             'metadata'      => $extracted['metadata'],
             'backUrl'       => '/laundry-lms/orders/show?id=' . $order['id']
         ], 'print');
+    }
+
+    /**
+     * Generate and stream A4 PDF operational job card/invoice for staff & admin.
+     */
+    public function downloadPdf(): void {
+        $id = (int)($_GET['id'] ?? 0);
+        $order = $id > 0 ? Order::find($id) : null;
+
+        if (!$order) {
+            http_response_code(404);
+            echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-width: 600px; margin: 0 auto;'>" .
+                 "<h1 style='color: #e11d48; font-size: 2rem;'>404 Not Found</h1>" .
+                 "<p style='color: #475569;'>Order not found or invalid order ID.</p>" .
+                 "<p><a href='/laundry-lms/orders' style='color: #2563eb; text-decoration: underline;'>Return to Orders Directory</a></p>" .
+                 "</div>";
+            exit;
+        }
+
+        $orderItems    = Order::getItems($id);
+        $extracted     = OrderMetadata::extract($order['special_instructions']);
+        $history       = Order::getStatusHistory($id);
+        $payments      = Payment::getByOrderId($id);
+        $refunds       = Refund::getByOrderId($id);
+        $totalRefunded = Refund::getTotalRefundedByOrderId($id);
+        $settings      = Settings::get();
+
+        $download = (isset($_GET['download']) && (string)$_GET['download'] === '1');
+
+        ob_start();
+        $mode         = 'job_card';
+        $customerNote = $extracted['customer_note'];
+        $metadata     = $extracted['metadata'];
+        require __DIR__ . '/../../views/pages/orders/invoice_pdf.php';
+        $html = (string)ob_get_clean();
+
+        InvoicePdfService::stream($html, (string)($order['job_id'] ?? 'Order'), $download);
     }
 }
