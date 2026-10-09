@@ -63,14 +63,16 @@ class ReportController {
             $layout   = 'admin';
         }
 
-        $kpis      = Report::getKpis($range['start'], $range['end'], $selectedBranchId);
-        $statusSum = Report::getStatusSummary($range['start'], $range['end'], $selectedBranchId);
-        $workload  = Report::getOperationalWorkload($selectedBranchId);
+        $kpis       = Report::getKpis($range['start'], $range['end'], $selectedBranchId);
+        $financials = Report::getFinancialSummary($range['start'], $range['end'], $selectedBranchId);
+        $statusSum  = Report::getStatusSummary($range['start'], $range['end'], $selectedBranchId);
+        $workload   = Report::getOperationalWorkload($selectedBranchId);
 
         Router::view('admin/reports', [
             'title'            => 'Operational Reports - Launder',
             'range'            => $range,
             'kpis'             => $kpis,
+            'financials'       => $financials,
             'statusSum'        => $statusSum,
             'workload'         => $workload,
             'userRole'         => $userRole,

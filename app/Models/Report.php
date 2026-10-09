@@ -91,6 +91,102 @@ class Report {
         ];
     }
 
+    public static function getFinancialSummary(string $start, string $end, ?int $branchId = null): array {
+        $db = Database::getConnection();
+
+        $startBoundary = (strlen($start) === 10) ? $start . ' 00:00:00' : $start;
+        $endDate = substr($end, 0, 10);
+        $nextDayExclusive = date('Y-m-d 00:00:00', strtotime($endDate . ' +1 day'));
+
+        // 1. Payments Query: Joined to orders only when branchId filter is applied
+        $payParams = [
+            'start'    => $startBoundary,
+            'next_day' => $nextDayExclusive
+        ];
+        $payJoin = "";
+        $payClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $payJoin = " JOIN orders o ON p.order_id = o.id";
+            $payClause = " AND o.branch_id = :branch_id";
+            $payParams['branch_id'] = $branchId;
+        }
+
+        $sqlPay = "SELECT
+                       p.payment_method,
+                       COUNT(p.id) AS tx_count,
+                       COALESCE(SUM(p.amount), 0.00) AS total_amount
+                   FROM payments p{$payJoin}
+                   WHERE p.created_at >= :start AND p.created_at < :next_day{$payClause}
+                   GROUP BY p.payment_method";
+
+        $stmtPay = $db->prepare($sqlPay);
+        $stmtPay->execute($payParams);
+        $payRows = $stmtPay->fetchAll();
+
+        // 2. Refunds Query: Joined to orders only when branchId filter is applied
+        $refParams = [
+            'start'    => $startBoundary,
+            'next_day' => $nextDayExclusive
+        ];
+        $refJoin = "";
+        $refClause = "";
+        if ($branchId !== null && $branchId > 0) {
+            $refJoin = " JOIN orders o ON r.order_id = o.id";
+            $refClause = " AND o.branch_id = :branch_id";
+            $refParams['branch_id'] = $branchId;
+        }
+
+        $sqlRef = "SELECT
+                       COUNT(r.id) AS refund_count,
+                       COALESCE(SUM(r.amount), 0.00) AS total_refunded
+                   FROM refunds r{$refJoin}
+                   WHERE r.status = 'processed'
+                     AND r.processed_at >= :start AND r.processed_at < :next_day{$refClause}";
+
+        $stmtRef = $db->prepare($sqlRef);
+        $stmtRef->execute($refParams);
+        $refRow = $stmtRef->fetch() ?: ['refund_count' => 0, 'total_refunded' => 0.00];
+
+        // 3. Process Payment Methods Breakdown & Gross Total
+        $byMethod = [
+            'cash'   => ['amount' => 0.00, 'count' => 0],
+            'upi'    => ['amount' => 0.00, 'count' => 0],
+            'online' => ['amount' => 0.00, 'count' => 0],
+        ];
+
+        $grossPayments = 0.00;
+        $grossCount    = 0;
+
+        foreach ($payRows as $row) {
+            $method = (string)($row['payment_method'] ?? '');
+            $amount = round((float)($row['total_amount'] ?? 0), 2);
+            $cnt    = (int)($row['tx_count'] ?? 0);
+
+            if (isset($byMethod[$method])) {
+                $byMethod[$method]['amount'] = $amount;
+                $byMethod[$method]['count']  = $cnt;
+            } else {
+                $byMethod[$method] = ['amount' => $amount, 'count' => $cnt];
+            }
+            $grossPayments += $amount;
+            $grossCount    += $cnt;
+        }
+        $grossPayments = round($grossPayments, 2);
+
+        $totalRefunded = round((float)($refRow['total_refunded'] ?? 0.00), 2);
+        $refundCount   = (int)($refRow['refund_count'] ?? 0);
+        $netCollections = round($grossPayments - $totalRefunded, 2);
+
+        return [
+            'gross_payments_recorded'    => $grossPayments,
+            'gross_payments_count'       => $grossCount,
+            'processed_refunds_recorded' => $totalRefunded,
+            'processed_refunds_count'    => $refundCount,
+            'net_recorded_collections'   => $netCollections,
+            'by_method'                  => $byMethod
+        ];
+    }
+
     public static function getStatusSummary(string $start, string $end, ?int $branchId = null): array {
         $statuses = [
             'pickup_request', 'accepted', 'picked_up', 'inspection_completed',

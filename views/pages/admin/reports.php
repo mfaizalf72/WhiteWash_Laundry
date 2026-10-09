@@ -87,32 +87,116 @@
     </div>
 
     <!-- Section B: Financial & Payment Settlement Report -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-        <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Section B: Payment Settlement Summary</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Section B: Financial & Payment Settlement Report</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Cash receipts and refund processing recorded during this period, alongside order cohort receivables.</p>
+            </div>
+            <div class="text-xs text-slate-400 font-mono">
+                Order Value Booked: <strong class="text-slate-700 font-bold">₹<?= number_format($kpis['total_order_value'], 2) ?></strong>
+            </div>
+        </div>
+
+        <!-- Cashflow Movement (Receipts, Refunds, Net) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Gross Payments Recorded -->
             <div class="p-5 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-1">
-                <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">Amount Collected</span>
-                <span class="text-3xl font-bold font-mono text-emerald-800 block">₹<?= number_format($kpis['amount_collected'], 2) ?></span>
-                <span class="text-xs text-emerald-600 block">Total recorded payments</span>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">Gross Payments Recorded</span>
+                    <span class="text-xs font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                        <?= number_format($financials['gross_payments_count'] ?? 0) ?> txns
+                    </span>
+                </div>
+                <span class="text-3xl font-bold font-mono text-emerald-800 block">
+                    ₹<?= number_format($financials['gross_payments_recorded'] ?? 0, 2) ?>
+                </span>
+                <span class="text-xs text-emerald-600 block">Payments recorded during selected period</span>
             </div>
+
+            <!-- Processed Refunds Recorded -->
+            <div class="p-5 rounded-xl border border-amber-200 bg-amber-50/40 space-y-1">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider block">Processed Refunds Recorded</span>
+                    <span class="text-xs font-mono font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                        <?= number_format($financials['processed_refunds_count'] ?? 0) ?> refunds
+                    </span>
+                </div>
+                <span class="text-3xl font-bold font-mono text-amber-800 block">
+                    ₹<?= number_format($financials['processed_refunds_recorded'] ?? 0, 2) ?>
+                </span>
+                <span class="text-xs text-amber-600 block">Refunds settled during selected period</span>
+            </div>
+
+            <!-- Net Recorded Collections -->
+            <?php
+                $netVal = (float)($financials['net_recorded_collections'] ?? 0);
+                $netFormatted = ($netVal < 0)
+                    ? '-₹' . number_format(abs($netVal), 2)
+                    : '₹' . number_format($netVal, 2);
+            ?>
+            <div class="p-5 rounded-xl border border-slate-900 bg-slate-900 text-white space-y-1 shadow-sm">
+                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider block">Net Recorded Collections</span>
+                <span class="text-3xl font-bold font-mono text-white block">
+                    <?= $netFormatted ?>
+                </span>
+                <span class="text-xs text-slate-400 block">Gross recorded payments minus processed refunds. Covers recorded transactions only.</span>
+            </div>
+        </div>
+
+        <!-- Receivables, Method Breakdown & Order Settlement Status -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2 border-t border-slate-100">
+            <!-- Outstanding Order Balance -->
             <div class="p-5 rounded-xl border border-rose-200 bg-rose-50/40 space-y-1">
-                <span class="text-xs font-semibold text-rose-700 uppercase tracking-wider block">Outstanding Amount</span>
-                <span class="text-3xl font-bold font-mono text-rose-800 block">₹<?= number_format($kpis['outstanding_balance'], 2) ?></span>
-                <span class="text-xs text-rose-600 block">Uncollected order balance</span>
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-rose-700 uppercase tracking-wider block">Outstanding Order Balance</span>
+                </div>
+                <span class="text-3xl font-bold font-mono text-rose-800 block">
+                    ₹<?= number_format($kpis['outstanding_balance'], 2) ?>
+                </span>
+                <span class="text-xs text-rose-600 block">Uncollected order balance for orders created in period</span>
             </div>
+
+            <!-- Payment Method Breakdown -->
             <div class="p-5 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
-                <span class="font-bold text-slate-900 uppercase block border-b border-slate-200 pb-1">Payment Status Distribution</span>
-                <div class="flex justify-between">
+                <span class="font-bold text-slate-900 uppercase block border-b border-slate-200 pb-1">Payment Method Breakdown</span>
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-600 font-medium">Cash:</span>
+                    <span class="font-mono font-bold text-slate-900">
+                        ₹<?= number_format($financials['by_method']['cash']['amount'] ?? 0, 2) ?>
+                        <span class="text-slate-400 font-normal">(<?= (int)($financials['by_method']['cash']['count'] ?? 0) ?>)</span>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-600 font-medium">UPI:</span>
+                    <span class="font-mono font-bold text-slate-900">
+                        ₹<?= number_format($financials['by_method']['upi']['amount'] ?? 0, 2) ?>
+                        <span class="text-slate-400 font-normal">(<?= (int)($financials['by_method']['upi']['count'] ?? 0) ?>)</span>
+                    </span>
+                </div>
+                <div class="flex justify-between items-center py-0.5">
+                    <span class="text-slate-600 font-medium">Online Gateway:</span>
+                    <span class="font-mono font-bold text-slate-900">
+                        ₹<?= number_format($financials['by_method']['online']['amount'] ?? 0, 2) ?>
+                        <span class="text-slate-400 font-normal">(<?= (int)($financials['by_method']['online']['count'] ?? 0) ?>)</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Order Settlement Status -->
+            <div class="p-5 rounded-xl border border-slate-200 bg-slate-50 space-y-2 text-xs">
+                <span class="font-bold text-slate-900 uppercase block border-b border-slate-200 pb-1">Order Settlement Status</span>
+                <div class="flex justify-between items-center py-0.5">
                     <span class="text-rose-600 font-medium">Unpaid Orders:</span>
-                    <span class="font-mono font-bold"><?= number_format($kpis['unpaid_orders_count']) ?></span>
+                    <span class="font-mono font-bold text-slate-900"><?= number_format($kpis['unpaid_orders_count']) ?></span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-0.5">
                     <span class="text-amber-600 font-medium">Partial Orders:</span>
-                    <span class="font-mono font-bold"><?= number_format($kpis['partial_orders_count']) ?></span>
+                    <span class="font-mono font-bold text-slate-900"><?= number_format($kpis['partial_orders_count']) ?></span>
                 </div>
-                <div class="flex justify-between">
+                <div class="flex justify-between items-center py-0.5">
                     <span class="text-emerald-600 font-medium">Fully Paid Orders:</span>
-                    <span class="font-mono font-bold"><?= number_format($kpis['paid_orders_count']) ?></span>
+                    <span class="font-mono font-bold text-slate-900"><?= number_format($kpis['paid_orders_count']) ?></span>
                 </div>
             </div>
         </div>
