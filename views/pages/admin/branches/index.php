@@ -58,6 +58,12 @@
                                     <?php if (!empty($b['address'])): ?>
                                         <div class="text-xs text-slate-500 truncate max-w-xs"><?= htmlspecialchars($b['address']) ?></div>
                                     <?php endif; ?>
+                                    <?php if (!empty($b['working_hours'])): ?>
+                                        <div class="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                                            <svg class="w-3 h-3 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            <span class="truncate max-w-xs"><?= htmlspecialchars($b['working_hours']) ?></span>
+                                        </div>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4">
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 font-mono">
@@ -78,7 +84,7 @@
                                     <?= date('M j, Y', strtotime($b['created_at'])) ?>
                                 </td>
                                 <td class="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                                    <button type="button" 
+                                    <button type="button"
                                             onclick='openEditBranchModal(<?= json_encode($b, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>)'
                                             class="text-indigo-600 hover:text-indigo-900 font-medium text-xs">
                                         Edit
@@ -135,6 +141,11 @@
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Address</label>
                 <textarea name="address" rows="2" placeholder="Full street address of the branch..." class="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 outline-none"></textarea>
             </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Working Hours (Optional)</label>
+                <input type="text" name="working_hours" maxlength="100" placeholder="e.g. Mon-Sat: 09:00 AM - 08:00 PM" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 outline-none">
+                <span class="text-[11px] text-slate-400">Leave blank to inherit global business working hours</span>
+            </div>
             <div class="flex items-center gap-2 pt-1">
                 <input type="checkbox" name="is_active" id="create_is_active" value="1" checked class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900">
                 <label for="create_is_active" class="text-sm font-medium text-slate-700">Active (Accepts Orders)</label>
@@ -173,6 +184,11 @@
                 <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Address</label>
                 <textarea name="address" id="edit_branch_address" rows="2" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 outline-none"></textarea>
             </div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">Working Hours (Optional)</label>
+                <input type="text" name="working_hours" id="edit_branch_working_hours" maxlength="100" placeholder="e.g. Mon-Sat: 09:00 AM - 08:00 PM" class="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-slate-900 outline-none">
+                <span class="text-[11px] text-slate-400">Leave blank to inherit global business working hours</span>
+            </div>
             <div class="flex items-center gap-2 pt-1">
                 <input type="checkbox" name="is_active" id="edit_branch_is_active" value="1" class="w-4 h-4 text-slate-900 border-slate-300 rounded focus:ring-slate-900">
                 <label for="edit_branch_is_active" class="text-sm font-medium text-slate-700">Active</label>
@@ -192,6 +208,7 @@ function openEditBranchModal(b) {
     document.getElementById('edit_branch_code').value = b.code;
     document.getElementById('edit_branch_phone').value = b.phone || '';
     document.getElementById('edit_branch_address').value = b.address || '';
+    document.getElementById('edit_branch_working_hours').value = b.working_hours || '';
     document.getElementById('edit_branch_is_active').checked = parseInt(b.is_active) === 1;
     document.getElementById('editBranchModal').classList.remove('hidden');
 }

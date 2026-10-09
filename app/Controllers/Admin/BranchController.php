@@ -24,7 +24,8 @@ class BranchController {
         $code     = strtoupper(trim($_POST['code'] ?? ''));
         $phone    = trim($_POST['phone'] ?? '');
         $address  = trim($_POST['address'] ?? '');
-        $isActive = isset($_POST['is_active']) ? 1 : 0;
+        $workingHours = trim($_POST['working_hours'] ?? '');
+        $isActive     = isset($_POST['is_active']) ? 1 : 0;
 
         if (empty($name)) {
             $_SESSION['error'] = "Branch name is required.";
@@ -34,6 +35,12 @@ class BranchController {
 
         if (mb_strlen($name) > 100) {
             $_SESSION['error'] = "Branch name cannot exceed 100 characters.";
+            Router::redirect('/admin/branches');
+            return;
+        }
+
+        if (mb_strlen($workingHours) > 100) {
+            $_SESSION['error'] = "Working hours cannot exceed 100 characters.";
             Router::redirect('/admin/branches');
             return;
         }
@@ -58,11 +65,12 @@ class BranchController {
 
         try {
             Branch::create([
-                'name'      => $name,
-                'code'      => $code,
-                'phone'     => !empty($phone) ? $phone : null,
-                'address'   => !empty($address) ? $address : null,
-                'is_active' => $isActive
+                'name'          => $name,
+                'code'          => $code,
+                'phone'         => !empty($phone) ? $phone : null,
+                'address'       => !empty($address) ? $address : null,
+                'working_hours' => !empty($workingHours) ? $workingHours : null,
+                'is_active'     => $isActive
             ]);
             $_SESSION['success'] = "Branch '{$name}' created successfully.";
         } catch (\Throwable $e) {
@@ -73,12 +81,13 @@ class BranchController {
     }
 
     public function update(): void {
-        $id       = (int)($_POST['id'] ?? 0);
-        $name     = trim($_POST['name'] ?? '');
-        $code     = strtoupper(trim($_POST['code'] ?? ''));
-        $phone    = trim($_POST['phone'] ?? '');
-        $address  = trim($_POST['address'] ?? '');
-        $isActive = isset($_POST['is_active']) ? 1 : 0;
+        $id           = (int)($_POST['id'] ?? 0);
+        $name         = trim($_POST['name'] ?? '');
+        $code         = strtoupper(trim($_POST['code'] ?? ''));
+        $phone        = trim($_POST['phone'] ?? '');
+        $address      = trim($_POST['address'] ?? '');
+        $workingHours = trim($_POST['working_hours'] ?? '');
+        $isActive     = isset($_POST['is_active']) ? 1 : 0;
 
         if ($id <= 0) {
             $_SESSION['error'] = "Invalid branch ID.";
@@ -105,6 +114,12 @@ class BranchController {
             return;
         }
 
+        if (mb_strlen($workingHours) > 100) {
+            $_SESSION['error'] = "Working hours cannot exceed 100 characters.";
+            Router::redirect('/admin/branches');
+            return;
+        }
+
         if (empty($code)) {
             $_SESSION['error'] = "Branch code cannot be empty.";
             Router::redirect('/admin/branches');
@@ -126,11 +141,12 @@ class BranchController {
 
         try {
             Branch::update($id, [
-                'name'      => $name,
-                'code'      => $code,
-                'phone'     => !empty($phone) ? $phone : null,
-                'address'   => !empty($address) ? $address : null,
-                'is_active' => $isActive
+                'name'          => $name,
+                'code'          => $code,
+                'phone'         => !empty($phone) ? $phone : null,
+                'address'       => !empty($address) ? $address : null,
+                'working_hours' => !empty($workingHours) ? $workingHours : null,
+                'is_active'     => $isActive
             ]);
             $_SESSION['success'] = "Branch '{$name}' updated successfully.";
         } catch (\Throwable $e) {

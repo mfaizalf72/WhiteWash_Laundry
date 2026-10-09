@@ -194,7 +194,8 @@ class Order {
     public static function find(int $id): ?array {
         $db = Database::getConnection();
         $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
-                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address
+                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address,
+                       b.working_hours AS branch_working_hours
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 LEFT JOIN users s ON o.staff_id = s.id
@@ -1153,7 +1154,8 @@ class Order {
     public static function findForCustomer(int $orderId, int $customerId): ?array {
         $db = Database::getConnection();
         $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, c.address AS customer_address, s.name AS staff_name,
-                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address
+                       b.name AS branch_name, b.code AS branch_code, b.phone AS branch_phone, b.address AS branch_address,
+                       b.working_hours AS branch_working_hours
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
                 LEFT JOIN users s ON o.staff_id = s.id

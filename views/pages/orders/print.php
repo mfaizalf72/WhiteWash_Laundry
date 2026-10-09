@@ -61,7 +61,7 @@ if ($branchName && $branchName !== $shopName) {
 }
 $shopAddress = !empty($order['branch_address']) ? $order['branch_address'] : (!empty($settings['address']) ? $settings['address'] : '');
 $shopPhone   = !empty($order['branch_phone']) ? $order['branch_phone'] : (!empty($settings['whatsapp_number']) ? $settings['whatsapp_number'] : '');
-$shopHours   = !empty($settings['working_hours']) ? $settings['working_hours'] : '';
+$shopHours   = !empty($order['branch_working_hours']) ? $order['branch_working_hours'] : (!empty($settings['working_hours']) ? $settings['working_hours'] : '');
 
 $statusLabels = [
     'pickup_request'       => 'Pickup Requested',
@@ -788,6 +788,9 @@ $basePrintUrl = $isJobCard
             <?php endif; ?>
             <?php if (!empty($shopPhone)): ?>
                 <div class="thermal-shop-sub">Tel: <?= Security::e($shopPhone) ?></div>
+            <?php endif; ?>
+            <?php if (!empty($shopHours)): ?>
+                <div class="thermal-shop-sub">Hours: <?= Security::e($shopHours) ?></div>
             <?php endif; ?>
             <div class="thermal-divider"></div>
             <div class="thermal-doc-title" style="font-size: 11px;"><?= Security::e($docHeading) ?></div>

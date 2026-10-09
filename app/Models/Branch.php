@@ -171,17 +171,24 @@ class Branch {
             throw new \InvalidArgumentException("Branch code '{$code}' is already in use.");
         }
 
+        $workingHours = isset($data['working_hours']) ? trim((string)$data['working_hours']) : null;
+        $workingHours = ($workingHours !== null && $workingHours !== '') ? $workingHours : null;
+        if ($workingHours !== null && mb_strlen($workingHours) > 100) {
+            throw new \InvalidArgumentException("Working hours cannot exceed 100 characters.");
+        }
+
         $db = Database::getConnection();
         $stmt = $db->prepare("
-            INSERT INTO branches (name, code, phone, address, is_active)
-            VALUES (:name, :code, :phone, :address, :is_active)
+            INSERT INTO branches (name, code, phone, address, working_hours, is_active)
+            VALUES (:name, :code, :phone, :address, :working_hours, :is_active)
         ");
         $stmt->execute([
-            'name'      => $name,
-            'code'      => $code,
-            'phone'     => $phone,
-            'address'   => $address,
-            'is_active' => $active
+            'name'          => $name,
+            'code'          => $code,
+            'phone'         => $phone,
+            'address'       => $address,
+            'working_hours' => $workingHours,
+            'is_active'     => $active
         ]);
 
         return (int)$db->lastInsertId();
@@ -220,19 +227,26 @@ class Branch {
             throw new \InvalidArgumentException("Branch code '{$code}' is already in use by another branch.");
         }
 
+        $workingHours = isset($data['working_hours']) ? trim((string)$data['working_hours']) : null;
+        $workingHours = ($workingHours !== null && $workingHours !== '') ? $workingHours : null;
+        if ($workingHours !== null && mb_strlen($workingHours) > 100) {
+            throw new \InvalidArgumentException("Working hours cannot exceed 100 characters.");
+        }
+
         $db = Database::getConnection();
         $stmt = $db->prepare("
             UPDATE branches
-            SET name = :name, code = :code, phone = :phone, address = :address, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
+            SET name = :name, code = :code, phone = :phone, address = :address, working_hours = :working_hours, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
             WHERE id = :id AND deleted_at IS NULL
         ");
         return $stmt->execute([
-            'id'        => $id,
-            'name'      => $name,
-            'code'      => $code,
-            'phone'     => $phone,
-            'address'   => $address,
-            'is_active' => $active
+            'id'            => $id,
+            'name'          => $name,
+            'code'          => $code,
+            'phone'         => $phone,
+            'address'       => $address,
+            'working_hours' => $workingHours,
+            'is_active'     => $active
         ]);
     }
 
@@ -245,7 +259,7 @@ class Branch {
         }
         $db = Database::getConnection();
         $stmt = $db->prepare("
-            UPDATE branches 
+            UPDATE branches
             SET is_active = IF(is_active = 1, 0, 1), updated_at = CURRENT_TIMESTAMP
             WHERE id = :id AND deleted_at IS NULL
         ");
@@ -268,8 +282,8 @@ class Branch {
 
         $db = Database::getConnection();
         $stmt = $db->prepare("
-            UPDATE branches 
-            SET deleted_at = CURRENT_TIMESTAMP, is_active = 0 
+            UPDATE branches
+            SET deleted_at = CURRENT_TIMESTAMP, is_active = 0
             WHERE id = :id AND deleted_at IS NULL
         ");
         return $stmt->execute(['id' => $id]);
