@@ -9,6 +9,22 @@
         </div>
         <div>
             <form action="/laundry-lms/reports" method="GET" class="flex flex-wrap items-center gap-2">
+                <?php if (($userRole ?? '') === 'admin'): ?>
+                    <select name="branch_id" onchange="this.form.submit()" class="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:ring-2 focus:ring-slate-900 bg-white">
+                        <option value="">All Branches</option>
+                        <?php foreach ($branches ?? [] as $b): ?>
+                            <option value="<?= (int)$b['id'] ?>" <?= ((int)($selectedBranchId ?? 0) === (int)$b['id']) ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($b['name']) ?> (<?= htmlspecialchars($b['code']) ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php elseif (($userRole ?? '') === 'staff' && !empty($currentBranch)): ?>
+                    <div class="px-3.5 py-2 bg-blue-50 border border-blue-200 text-blue-800 text-xs font-semibold rounded-xl flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                        <span>Branch: <?= htmlspecialchars($currentBranch['name']) ?> (<?= htmlspecialchars($currentBranch['code']) ?>)</span>
+                    </div>
+                <?php endif; ?>
+
                 <select name="filter" id="rep_filter" onchange="toggleCustomDates('rep')" class="px-3.5 py-2 rounded-xl border border-slate-300 text-sm font-medium focus:ring-2 focus:ring-slate-900">
                     <option value="today" <?= ($range['filter'] === 'today') ? 'selected' : '' ?>>Today</option>
                     <option value="last_7_days" <?= ($range['filter'] === 'last_7_days') ? 'selected' : '' ?>>Last 7 Days</option>
@@ -28,10 +44,22 @@
     </div>
 
     <!-- Active Reporting Date Range Badge -->
-    <div class="bg-slate-900 text-white p-4 rounded-xl flex items-center justify-between shadow-sm">
-        <div class="text-xs uppercase tracking-wider font-semibold text-slate-400">Active Reporting Period</div>
-        <div class="font-mono font-bold text-sm">
-            <?= htmlspecialchars(date('M d, Y', strtotime($range['start_date']))) ?> — <?= htmlspecialchars(date('M d, Y', strtotime($range['end_date']))) ?>
+    <div class="bg-slate-900 text-white p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 shadow-sm">
+        <div>
+            <div class="text-xs uppercase tracking-wider font-semibold text-slate-400">Active Reporting Period</div>
+            <div class="font-mono font-bold text-sm">
+                <?= htmlspecialchars(date('M d, Y', strtotime($range['start_date']))) ?> — <?= htmlspecialchars(date('M d, Y', strtotime($range['end_date']))) ?>
+            </div>
+        </div>
+        <div class="text-xs bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg text-slate-300 flex items-center gap-1.5">
+            <span class="text-slate-400 font-medium">Scope:</span>
+            <strong class="text-white font-semibold">
+                <?php if (!empty($currentBranch)): ?>
+                    <?= htmlspecialchars($currentBranch['name']) ?> (<?= htmlspecialchars($currentBranch['code']) ?>)
+                <?php else: ?>
+                    All Branches (Company-wide)
+                <?php endif; ?>
+            </strong>
         </div>
     </div>
 
