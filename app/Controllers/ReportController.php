@@ -63,10 +63,13 @@ class ReportController {
             $layout   = 'admin';
         }
 
-        $kpis       = Report::getKpis($range['start'], $range['end'], $selectedBranchId);
-        $financials = Report::getFinancialSummary($range['start'], $range['end'], $selectedBranchId);
-        $statusSum  = Report::getStatusSummary($range['start'], $range['end'], $selectedBranchId);
-        $workload   = Report::getOperationalWorkload($selectedBranchId);
+        $kpis            = Report::getKpis($range['start'], $range['end'], $selectedBranchId);
+        $financials      = Report::getFinancialSummary($range['start'], $range['end'], $selectedBranchId);
+        $statusSum       = Report::getStatusSummary($range['start'], $range['end'], $selectedBranchId);
+        $workload        = Report::getOperationalWorkload($selectedBranchId);
+        $dailyTrends     = Report::getDailyTrends($range['start'], $range['end'], $selectedBranchId);
+        $orderEconomics  = Report::getOrderValueDistribution($range['start'], $range['end'], $selectedBranchId);
+        $overdueCounts   = Report::getOverdueCounts($selectedBranchId);
 
         Router::view('admin/reports', [
             'title'            => 'Operational Reports - Launder',
@@ -75,6 +78,9 @@ class ReportController {
             'financials'       => $financials,
             'statusSum'        => $statusSum,
             'workload'         => $workload,
+            'dailyTrends'      => $dailyTrends,
+            'orderEconomics'   => $orderEconomics,
+            'overdueCounts'    => $overdueCounts,
             'userRole'         => $userRole,
             'branches'         => $branches,
             'selectedBranchId' => $selectedBranchId,

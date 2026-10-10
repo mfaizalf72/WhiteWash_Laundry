@@ -63,6 +63,41 @@
         </div>
     </div>
 
+    <!-- Operational Attention Snapshot (Overdue Indicators) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white p-5 rounded-2xl border <?= (($overdueCounts['overdue_pickups'] ?? 0) > 0) ? 'border-rose-200 bg-rose-50/20' : 'border-slate-200' ?> shadow-sm flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider <?= (($overdueCounts['overdue_pickups'] ?? 0) > 0) ? 'text-rose-700' : 'text-slate-500' ?>">Overdue Pickups</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full <?= (($overdueCounts['overdue_pickups'] ?? 0) > 0) ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-100 text-slate-600' ?>">Current Snapshot</span>
+                </div>
+                <div class="text-2xl font-bold font-mono <?= (($overdueCounts['overdue_pickups'] ?? 0) > 0) ? 'text-rose-700' : 'text-slate-900' ?> mt-1">
+                    <?= number_format($overdueCounts['overdue_pickups'] ?? 0) ?>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">Orders in 'pickup_request' or 'accepted' with pickup date prior to today.</p>
+            </div>
+            <div class="p-3 rounded-xl <?= (($overdueCounts['overdue_pickups'] ?? 0) > 0) ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-400' ?>">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border <?= (($overdueCounts['overdue_deliveries'] ?? 0) > 0) ? 'border-amber-200 bg-amber-50/20' : 'border-slate-200' ?> shadow-sm flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold uppercase tracking-wider <?= (($overdueCounts['overdue_deliveries'] ?? 0) > 0) ? 'text-amber-700' : 'text-slate-500' ?>">Overdue Deliveries</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full <?= (($overdueCounts['overdue_deliveries'] ?? 0) > 0) ? 'bg-amber-100 text-amber-800 font-bold' : 'bg-slate-100 text-slate-600' ?>">Current Snapshot</span>
+                </div>
+                <div class="text-2xl font-bold font-mono <?= (($overdueCounts['overdue_deliveries'] ?? 0) > 0) ? 'text-amber-700' : 'text-slate-900' ?> mt-1">
+                    <?= number_format($overdueCounts['overdue_deliveries'] ?? 0) ?>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">In-flight active orders with delivery date prior to today.</p>
+            </div>
+            <div class="p-3 rounded-xl <?= (($overdueCounts['overdue_deliveries'] ?? 0) > 0) ? 'bg-amber-100 text-amber-600' : 'bg-slate-100 text-slate-400' ?>">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+        </div>
+    </div>
+
     <!-- Section A: Order Summary Report Card -->
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
         <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Section A: Order Summary Report</h3>
@@ -216,14 +251,202 @@
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     <?php foreach ($statusSum as $stKey => $stData): ?>
-                        <tr class="hover:bg-slate-50/50">
-                            <td class="px-6 py-3 font-semibold text-slate-800"><?= htmlspecialchars($stData['name']) ?></td>
-                            <td class="px-6 py-3 text-center font-mono font-bold text-slate-900"><?= number_format($stData['count']) ?></td>
-                            <td class="px-6 py-3 text-right font-mono font-bold text-slate-900">₹<?= number_format($stData['val'], 2) ?></td>
+                        <tr class="hover:bg-slate-50/50 <?= ($stKey === 'cancelled') ? 'bg-rose-50/30' : '' ?>">
+                            <td class="px-6 py-3 font-semibold text-slate-800">
+                                <?= htmlspecialchars($stData['name']) ?>
+                                <?php if ($stKey === 'cancelled'): ?>
+                                    <span class="ml-2 text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">Terminal</span>
+                                <?php endif; ?>
+                            </td>
+                            <td class="px-6 py-3 text-center font-mono font-bold <?= ($stKey === 'cancelled') ? 'text-rose-700' : 'text-slate-900' ?>"><?= number_format($stData['count']) ?></td>
+                            <td class="px-6 py-3 text-right font-mono font-bold <?= ($stKey === 'cancelled') ? 'text-rose-700' : 'text-slate-900' ?>">₹<?= number_format($stData['val'], 2) ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <!-- Section D: Daily Performance Ledger -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Section D: Daily Performance Ledger</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Chronological day-by-day business volume and financial transaction ledger for the selected period.</p>
+            </div>
+            <div class="text-xs text-slate-400">
+                <span class="font-medium text-slate-600"><?= count($dailyTrends ?? []) ?></span> calendar days in period
+            </div>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-[500px] overflow-y-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase sticky top-0 z-10">
+                    <tr>
+                        <th class="px-4 py-3 bg-slate-50">Date</th>
+                        <th class="px-4 py-3 text-center bg-slate-50">Orders Created</th>
+                        <th class="px-4 py-3 text-right bg-slate-50">Booked Value</th>
+                        <th class="px-4 py-3 text-right bg-slate-50">Gross Payments</th>
+                        <th class="px-4 py-3 text-right bg-slate-50">Processed Refunds</th>
+                        <th class="px-4 py-3 text-right bg-slate-50">Net Collections</th>
+                        <th class="px-4 py-3 text-center bg-slate-50">Cohort Completed</th>
+                        <th class="px-4 py-3 text-center bg-slate-50">Cohort Cancelled</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <?php
+                        $sumOrders = 0;
+                        $sumBooked = 0.00;
+                        $sumGross = 0.00;
+                        $sumGrossCnt = 0;
+                        $sumRef = 0.00;
+                        $sumRefCnt = 0;
+                        $sumNet = 0.00;
+                        $sumCompCohort = 0;
+                        $sumCancCohort = 0;
+                    ?>
+                    <?php if (empty($dailyTrends)): ?>
+                        <tr>
+                            <td colspan="8" class="px-4 py-6 text-center text-slate-400 italic">No activity in selected period.</td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($dailyTrends as $row): ?>
+                            <?php
+                                $sumOrders += $row['orders_created'];
+                                $sumBooked += $row['total_order_value'];
+                                $sumGross += $row['gross_payments_recorded'];
+                                $sumGrossCnt += $row['gross_payments_count'];
+                                $sumRef += $row['processed_refunds_recorded'];
+                                $sumRefCnt += $row['processed_refunds_count'];
+                                $sumNet += $row['net_recorded_collections'];
+                                $sumCompCohort += $row['completed_cohort_count'];
+                                $sumCancCohort += $row['cancelled_cohort_count'];
+
+                                $dayNet = (float)$row['net_recorded_collections'];
+                                $dayNetFmt = ($dayNet < 0) ? '-₹' . number_format(abs($dayNet), 2) : '₹' . number_format($dayNet, 2);
+                            ?>
+                            <tr class="hover:bg-slate-50/50">
+                                <td class="px-4 py-2.5 font-mono font-medium text-slate-700 whitespace-nowrap">
+                                    <?= htmlspecialchars(date('M d, Y', strtotime($row['date']))) ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-center font-mono <?= ($row['orders_created'] > 0) ? 'font-bold text-slate-900' : 'text-slate-400' ?>">
+                                    <?= number_format($row['orders_created']) ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-right font-mono <?= ($row['total_order_value'] > 0) ? 'font-bold text-slate-900' : 'text-slate-400' ?>">
+                                    ₹<?= number_format($row['total_order_value'], 2) ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-right font-mono whitespace-nowrap <?= ($row['gross_payments_recorded'] > 0) ? 'text-emerald-700 font-bold' : 'text-slate-400' ?>">
+                                    ₹<?= number_format($row['gross_payments_recorded'], 2) ?>
+                                    <?php if ($row['gross_payments_count'] > 0): ?>
+                                        <span class="text-[10px] font-normal text-emerald-600 block">(<?= $row['gross_payments_count'] ?> txns)</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-right font-mono whitespace-nowrap <?= ($row['processed_refunds_recorded'] > 0) ? 'text-amber-700 font-bold' : 'text-slate-400' ?>">
+                                    ₹<?= number_format($row['processed_refunds_recorded'], 2) ?>
+                                    <?php if ($row['processed_refunds_count'] > 0): ?>
+                                        <span class="text-[10px] font-normal text-amber-600 block">(<?= $row['processed_refunds_count'] ?> ref)</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-right font-mono font-bold whitespace-nowrap <?= ($dayNet > 0) ? 'text-slate-900' : (($dayNet < 0) ? 'text-rose-600' : 'text-slate-400') ?>">
+                                    <?= $dayNetFmt ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-center font-mono <?= ($row['completed_cohort_count'] > 0) ? 'text-emerald-600 font-semibold' : 'text-slate-400' ?>">
+                                    <?= number_format($row['completed_cohort_count']) ?>
+                                </td>
+                                <td class="px-4 py-2.5 text-center font-mono <?= ($row['cancelled_cohort_count'] > 0) ? 'text-rose-600 font-semibold' : 'text-slate-400' ?>">
+                                    <?= number_format($row['cancelled_cohort_count']) ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </tbody>
+                <tfoot class="bg-slate-100 border-t-2 border-slate-200 font-bold text-slate-900 sticky bottom-0 z-10">
+                    <tr>
+                        <td class="px-4 py-3 uppercase text-[11px] tracking-wider text-slate-600">Total / Summary</td>
+                        <td class="px-4 py-3 text-center font-mono"><?= number_format($sumOrders) ?></td>
+                        <td class="px-4 py-3 text-right font-mono">₹<?= number_format($sumBooked, 2) ?></td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-800">
+                            ₹<?= number_format($sumGross, 2) ?>
+                            <span class="text-[10px] font-normal block">(<?= number_format($sumGrossCnt) ?> txns)</span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-amber-800">
+                            ₹<?= number_format($sumRef, 2) ?>
+                            <span class="text-[10px] font-normal block">(<?= number_format($sumRefCnt) ?> refunds)</span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono">
+                            <?= ($sumNet < 0) ? '-₹' . number_format(abs($sumNet), 2) : '₹' . number_format($sumNet, 2) ?>
+                        </td>
+                        <td class="px-4 py-3 text-center font-mono text-emerald-700"><?= number_format($sumCompCohort) ?></td>
+                        <td class="px-4 py-3 text-center font-mono text-rose-700"><?= number_format($sumCancCohort) ?></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-6 gap-y-1 pt-1">
+            <span>* <strong>Cohort Completed / Cancelled:</strong> Reflects current status of orders created on that calendar date.</span>
+            <span>* <strong>Payments & Refunds:</strong> Attributed to the transaction date when recorded/processed, matching cash movements.</span>
+        </div>
+    </div>
+
+    <!-- Section E: Order Economics & Value Distribution Report -->
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div class="border-b border-slate-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Section E: Order Economics & Ticket Size Distribution</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Basket size analytics and ticket tier breakdown across all orders created in this period.</p>
+            </div>
+            <div class="text-xs text-slate-400">
+                Total Orders: <strong class="text-slate-800 font-bold"><?= number_format($orderEconomics['total_orders'] ?? 0) ?></strong>
+            </div>
+        </div>
+
+        <!-- AOV Header Card -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="p-5 rounded-xl border border-indigo-100 bg-indigo-50/40">
+                <span class="text-xs font-semibold text-indigo-700 uppercase tracking-wider block">Average Order Value (AOV)</span>
+                <span class="text-3xl font-bold font-mono text-indigo-900 block mt-1">₹<?= number_format($orderEconomics['average_order_value'] ?? 0, 2) ?></span>
+                <span class="text-xs text-indigo-600 block mt-1">Booked Value / Total Orders</span>
+            </div>
+            <div class="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Total Booked Volume</span>
+                <span class="text-3xl font-bold font-mono text-slate-900 block mt-1"><?= number_format($orderEconomics['total_orders'] ?? 0) ?></span>
+                <span class="text-xs text-slate-500 block mt-1">Orders in selected cohort</span>
+            </div>
+            <div class="p-5 rounded-xl border border-slate-200 bg-slate-50">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Combined Booked Value</span>
+                <span class="text-3xl font-bold font-mono text-slate-900 block mt-1">₹<?= number_format($orderEconomics['total_order_value'] ?? 0, 2) ?></span>
+                <span class="text-xs text-slate-500 block mt-1">Aggregate ticket value</span>
+            </div>
+        </div>
+
+        <!-- Value Tiers Grid -->
+        <div class="space-y-3">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Ticket Size Tier Breakdown</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <?php foreach (($orderEconomics['tiers'] ?? []) as $tierKey => $tier): ?>
+                    <div class="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-300 transition-colors space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-900"><?= htmlspecialchars($tier['label']) ?></span>
+                            <span class="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                <?= number_format($tier['percentage'], 1) ?>%
+                            </span>
+                        </div>
+                        <div class="flex items-baseline justify-between pt-1">
+                            <div>
+                                <span class="text-2xl font-bold font-mono text-slate-900"><?= number_format($tier['count']) ?></span>
+                                <span class="text-xs text-slate-400 ml-1">orders</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-xs font-mono font-semibold text-slate-700 block">₹<?= number_format($tier['value'], 2) ?></span>
+                            </div>
+                        </div>
+                        <!-- Progress Bar -->
+                        <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div class="bg-indigo-600 h-1.5 rounded-full" style="width: <?= min(100, max(0, (float)$tier['percentage'])) ?>%"></div>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 </div>
