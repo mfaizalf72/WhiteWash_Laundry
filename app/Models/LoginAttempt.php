@@ -80,6 +80,16 @@ class LoginAttempt {
     }
 
     /**
+     * Clear all failed login attempts for a mobile number across all IP addresses (lockout relief).
+     */
+    public static function clearAllAttemptsForMobile(string $mobile): int {
+        $db = Database::getConnection();
+        $stmt = $db->prepare("DELETE FROM login_attempts WHERE mobile = :mobile");
+        $stmt->execute(['mobile' => $mobile]);
+        return $stmt->rowCount();
+    }
+
+    /**
      * Delete expired login attempt records older than the specified retention window (default 24 hours).
      */
     public static function pruneOldAttempts(?PDO $db = null, int $retentionHours = 24): int {

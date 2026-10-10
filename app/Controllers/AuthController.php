@@ -53,13 +53,14 @@ class AuthController {
             // Regenerate session ID to prevent session fixation attacks
             session_regenerate_id(true);
 
-            $_SESSION['user_id']        = (int)$user['id'];
-            $_SESSION['user_role']      = $user['role'];
-            $_SESSION['user_name']      = $user['name'];
-            $_SESSION['user_branch_id'] = !empty($user['branch_id']) ? (int)$user['branch_id'] : null;
+            $_SESSION['user_id']         = (int)$user['id'];
+            $_SESSION['user_role']       = $user['role'];
+            $_SESSION['user_name']       = $user['name'];
+            $_SESSION['user_branch_id']  = !empty($user['branch_id']) ? (int)$user['branch_id'] : null;
+            $_SESSION['session_version'] = (int)($user['session_version'] ?? 1);
 
             if ($user['role'] === 'customer') {
-                if ($pin === '1234') {
+                if ($pin === '1234' || (int)($user['must_change_pin'] ?? 0) === 1) {
                     $_SESSION['requires_pin_change'] = true;
                 } else {
                     unset($_SESSION['requires_pin_change']);
@@ -150,29 +151,10 @@ class AuthController {
             return;
         }
 
-        // 5. PIN format validation
-        if (strlen($pin) !== 4 || !ctype_digit($pin)) {
-            $this->backToRegisterWithErrors("PIN must be exactly 4 digits.");
-            return;
-        }
-
-        // 6. Prohibited trivial PINs
-        if ($pin === '1234') {
-            $this->backToRegisterWithErrors("The default PIN '1234' is not allowed for security reasons.");
-            return;
-        }
-        if ($pin === '4321') {
-            $this->backToRegisterWithErrors("PIN '4321' is too obvious. Please choose a more secure PIN.");
-            return;
-        }
-        if (preg_match('/^(\d)\1{3}$/', $pin)) {
-            $this->backToRegisterWithErrors("PIN cannot consist of four identical digits (e.g. 0000, 1111).");
-            return;
-        }
-
-        // 7. PIN confirmation check
-        if ($pin !== $confirmPin) {
-            $this->backToRegisterWithErrors("PIN confirmation does not match.");
+        // 5. PIN format and strength validation via shared validator
+        $pinError = Customer::validatePinChoice($pin, $confirmPin);
+        if ($pinError !== null) {
+            $this->backToRegisterWithErrors($pinError);
             return;
         }
 

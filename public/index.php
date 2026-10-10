@@ -103,6 +103,7 @@ $router->get('/customers/show', 'Faizal\LaundryLms\Controllers\CustomerControlle
 $router->post('/customers', 'Faizal\LaundryLms\Controllers\CustomerController@store', $authRoleCsrf);
 $router->post('/customers/update', 'Faizal\LaundryLms\Controllers\CustomerController@update', $authRoleCsrf);
 $router->post('/customers/delete', 'Faizal\LaundryLms\Controllers\CustomerController@delete', $authRoleCsrf);
+$router->post('/admin/customers/reset-pin', 'Faizal\LaundryLms\Controllers\CustomerController@resetPin', $adminOnlyAuthCsrf);
 
 // Staff Operational Routes
 $router->get('/staff/dashboard', 'Faizal\LaundryLms\Controllers\StaffPortalController@dashboard', $staffOnlyAuth);

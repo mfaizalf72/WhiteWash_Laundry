@@ -134,10 +134,6 @@
                 <input type="tel" id="edit_cust_mobile" name="mobile" required maxlength="15" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900">
             </div>
             <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1">Reset Login PIN (Optional)</label>
-                <input type="password" name="pin" placeholder="Leave blank to keep current PIN" maxlength="4" pattern="\d{4}" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900">
-            </div>
-            <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Address</label>
                 <textarea id="edit_cust_address" name="address" rows="2" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900"></textarea>
             </div>

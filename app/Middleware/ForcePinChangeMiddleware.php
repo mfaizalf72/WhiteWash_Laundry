@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Faizal\LaundryLms\Middleware;
 
 use Faizal\LaundryLms\Core\Router;
+use Faizal\LaundryLms\Models\User;
 
 class ForcePinChangeMiddleware implements MiddlewareInterface {
     public function handle(?string $param = null): void {
@@ -26,8 +27,18 @@ class ForcePinChangeMiddleware implements MiddlewareInterface {
             return;
         }
 
-        if (($_SESSION['requires_pin_change'] ?? false) === true) {
-            $_SESSION['warning'] = "For security purposes, you must change your default PIN before accessing your account.";
+        // Check session flag OR persistent database flag
+        $requiresChange = ($_SESSION['requires_pin_change'] ?? false) === true;
+        if (!$requiresChange) {
+            $user = User::find((int)$_SESSION['user_id']);
+            if ($user && (int)($user['must_change_pin'] ?? 0) === 1) {
+                $_SESSION['requires_pin_change'] = true;
+                $requiresChange = true;
+            }
+        }
+
+        if ($requiresChange) {
+            $_SESSION['warning'] = "For security purposes, you must update your PIN before accessing your account.";
             Router::redirect('/customer/force-pin-update');
             return;
         }

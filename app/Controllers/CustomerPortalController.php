@@ -380,15 +380,10 @@ class CustomerPortalController {
             return;
         }
 
-        // Validate new PIN
-        if (strlen($newPin) !== 4 || !ctype_digit($newPin)) {
-            $_SESSION['error'] = "New PIN must be a 4-digit number.";
-            Router::redirect('/customer/profile');
-            return;
-        }
-
-        if ($newPin !== $confirmPin) {
-            $_SESSION['error'] = "New PIN and confirmation PIN do not match.";
+        // Validate new PIN using shared validator
+        $pinError = Customer::validatePinChoice($newPin, $confirmPin, $customer['pin_hash']);
+        if ($pinError !== null) {
+            $_SESSION['error'] = $pinError;
             Router::redirect('/customer/profile');
             return;
         }
@@ -396,6 +391,10 @@ class CustomerPortalController {
         try {
             Customer::updatePin($customerId, $newPin);
             unset($_SESSION['requires_pin_change']);
+            $freshUser = Customer::find($customerId);
+            if ($freshUser) {
+                $_SESSION['session_version'] = (int)($freshUser['session_version'] ?? 1);
+            }
             $_SESSION['success'] = "Your PIN has been updated successfully!";
         } catch (\Throwable $e) {
             $_SESSION['error'] = "Failed to update PIN: " . $e->getMessage();
@@ -415,7 +414,7 @@ class CustomerPortalController {
         }
 
         // If customer does not require pin change, proceed to dashboard
-        if (empty($_SESSION['requires_pin_change'])) {
+        if (empty($_SESSION['requires_pin_change']) && (int)($customer['must_change_pin'] ?? 0) !== 1) {
             Router::redirect('/customer/dashboard');
             return;
         }
@@ -439,20 +438,10 @@ class CustomerPortalController {
         $newPin     = trim($_POST['new_pin'] ?? '');
         $confirmPin = trim($_POST['confirm_pin'] ?? '');
 
-        if (strlen($newPin) !== 4 || !ctype_digit($newPin)) {
-            $_SESSION['error'] = "New PIN must be a 4-digit number.";
-            Router::redirect('/customer/force-pin-update');
-            return;
-        }
-
-        if ($newPin === '1234') {
-            $_SESSION['error'] = "You cannot use the default PIN (1234). Please choose a different 4-digit PIN.";
-            Router::redirect('/customer/force-pin-update');
-            return;
-        }
-
-        if ($newPin !== $confirmPin) {
-            $_SESSION['error'] = "New PIN and confirmation PIN do not match.";
+        // Validate new PIN using shared validator
+        $pinError = Customer::validatePinChoice($newPin, $confirmPin, $customer['pin_hash']);
+        if ($pinError !== null) {
+            $_SESSION['error'] = $pinError;
             Router::redirect('/customer/force-pin-update');
             return;
         }
@@ -460,6 +449,10 @@ class CustomerPortalController {
         try {
             Customer::updatePin($customerId, $newPin);
             unset($_SESSION['requires_pin_change']);
+            $freshUser = Customer::find($customerId);
+            if ($freshUser) {
+                $_SESSION['session_version'] = (int)($freshUser['session_version'] ?? 1);
+            }
             $_SESSION['success'] = "PIN updated successfully! You can now access your dashboard.";
             Router::redirect('/customer/dashboard');
         } catch (\Throwable $e) {

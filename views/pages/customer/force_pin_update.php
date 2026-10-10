@@ -10,8 +10,8 @@ use Faizal\LaundryLms\Helpers\Security;
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
             </svg>
         </div>
-        <h2 class="text-2xl font-bold font-display text-slate-800">Change Default PIN</h2>
-        <p class="text-sm text-slate-500">Your account is currently using the default PIN <code class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-mono">1234</code>. Please choose a new secure 4-digit PIN before proceeding.</p>
+        <h2 class="text-2xl font-bold font-display text-slate-800">Establish Secure PIN</h2>
+        <p class="text-sm text-slate-500">A PIN update is required for your account before proceeding. Please choose a new secure 4-digit PIN.</p>
     </div>
 
     <?php if (!empty($_SESSION['error'])): ?>

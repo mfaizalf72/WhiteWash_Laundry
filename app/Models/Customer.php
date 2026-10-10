@@ -50,16 +50,18 @@ class Customer {
         $db = Database::getConnection();
         $pin = !empty($data['pin']) ? trim($data['pin']) : '1234';
         $pinHash = password_hash($pin, PASSWORD_DEFAULT);
+        $mustChangePin = ($pin === '1234') ? 1 : 0;
 
-        $sql = "INSERT INTO users (role, name, mobile, pin_hash, address, is_active)
-                VALUES ('customer', :name, :mobile, :pin_hash, :address, :is_active)";
+        $sql = "INSERT INTO users (role, name, mobile, pin_hash, address, is_active, must_change_pin, session_version)
+                VALUES ('customer', :name, :mobile, :pin_hash, :address, :is_active, :must_change_pin, 1)";
         $stmt = $db->prepare($sql);
         $stmt->execute([
-            'name'      => trim($data['name'] ?? ''),
-            'mobile'    => trim($data['mobile'] ?? ''),
-            'pin_hash'  => $pinHash,
-            'address'   => !empty($data['address']) ? trim($data['address']) : null,
-            'is_active' => isset($data['is_active']) ? (int)$data['is_active'] : 1
+            'name'            => trim($data['name'] ?? ''),
+            'mobile'          => trim($data['mobile'] ?? ''),
+            'pin_hash'        => $pinHash,
+            'address'         => !empty($data['address']) ? trim($data['address']) : null,
+            'is_active'       => isset($data['is_active']) ? (int)$data['is_active'] : 1,
+            'must_change_pin' => $mustChangePin
         ]);
         return (int)$db->lastInsertId();
     }
@@ -74,16 +76,9 @@ class Customer {
             'is_active' => isset($data['is_active']) ? (int)$data['is_active'] : 1
         ];
 
-        if (!empty($data['pin'])) {
-            $sql = "UPDATE users
-                    SET name = :name, mobile = :mobile, pin_hash = :pin_hash, address = :address, is_active = :is_active
-                    WHERE id = :id AND role = 'customer' AND deleted_at IS NULL";
-            $params['pin_hash'] = password_hash(trim($data['pin']), PASSWORD_DEFAULT);
-        } else {
-            $sql = "UPDATE users
-                    SET name = :name, mobile = :mobile, address = :address, is_active = :is_active
-                    WHERE id = :id AND role = 'customer' AND deleted_at IS NULL";
-        }
+        $sql = "UPDATE users
+                SET name = :name, mobile = :mobile, address = :address, is_active = :is_active, updated_at = CURRENT_TIMESTAMP
+                WHERE id = :id AND role = 'customer' AND deleted_at IS NULL";
 
         $stmt = $db->prepare($sql);
         return $stmt->execute($params);
@@ -122,7 +117,56 @@ class Customer {
     public static function updatePin(int $id, string $newPin): bool {
         $db = Database::getConnection();
         $hash = password_hash($newPin, PASSWORD_DEFAULT);
-        $stmt = $db->prepare("UPDATE users SET pin_hash = :hash, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND deleted_at IS NULL");
+        $stmt = $db->prepare("UPDATE users
+                              SET pin_hash = :hash,
+                                  must_change_pin = 0,
+                                  session_version = session_version + 1,
+                                  updated_at = CURRENT_TIMESTAMP
+                              WHERE id = :id AND deleted_at IS NULL");
         return $stmt->execute(['hash' => $hash, 'id' => $id]);
+    }
+
+    /**
+     * Admin-initiated temporary PIN assignment.
+     * Sets temporary pin hash, must_change_pin = 1, and increments session_version to invalidate old sessions.
+     */
+    public static function setTemporaryPin(int $id, string $tempPin): bool {
+        $db = Database::getConnection();
+        $hash = password_hash($tempPin, PASSWORD_DEFAULT);
+        $stmt = $db->prepare("UPDATE users
+                              SET pin_hash = :hash,
+                                  must_change_pin = 1,
+                                  session_version = session_version + 1,
+                                  updated_at = CURRENT_TIMESTAMP
+                              WHERE id = :id AND role = 'customer' AND deleted_at IS NULL");
+        return $stmt->execute(['hash' => $hash, 'id' => $id]);
+    }
+
+    /**
+     * Shared validator for new PIN choices.
+     * Enforces numeric 4-digit format, confirmation match, and rejects weak/trivial PINs.
+     *
+     * @return string|null Error message string on failure, or null if valid.
+     */
+    public static function validatePinChoice(string $newPin, string $confirmPin, ?string $currentPinHash = null): ?string {
+        if (strlen($newPin) !== 4 || !ctype_digit($newPin)) {
+            return "PIN must be exactly 4 numeric digits.";
+        }
+        if ($newPin !== $confirmPin) {
+            return "New PIN and confirmation PIN do not match.";
+        }
+        if ($newPin === '1234') {
+            return "The default PIN '1234' is not allowed for security reasons.";
+        }
+        if ($newPin === '4321') {
+            return "PIN '4321' is too obvious. Please choose a more secure PIN.";
+        }
+        if (preg_match('/^(\d)\1{3}$/', $newPin)) {
+            return "PIN cannot consist of four identical digits (e.g. 0000, 1111).";
+        }
+        if (!empty($currentPinHash) && password_verify($newPin, $currentPinHash)) {
+            return "New PIN cannot be the same as your temporary or current PIN. Please choose a different PIN.";
+        }
+        return null;
     }
 }
