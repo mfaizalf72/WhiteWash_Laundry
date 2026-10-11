@@ -87,29 +87,7 @@ $unreadNavCount = $navCustomerId > 0 ? Notification::getUnreadCount($navCustomer
     <!-- Main Container -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         <!-- Flash Messages -->
-        <?php if (!empty($_SESSION['success'])): ?>
-            <div class="mb-6 bg-emerald-50 border-l-4 border-emerald-500 p-4 rounded-r shadow-sm flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                    </svg>
-                    <p class="text-sm text-emerald-800 font-medium"><?= Security::e($_SESSION['success']) ?></p>
-                </div>
-                <?php unset($_SESSION['success']); ?>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!empty($_SESSION['error'])): ?>
-            <div class="mb-6 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r shadow-sm flex items-center justify-between">
-                <div class="flex items-center space-x-3">
-                    <svg class="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                    <p class="text-sm text-rose-800 font-medium"><?= Security::e($_SESSION['error']) ?></p>
-                </div>
-                <?php unset($_SESSION['error']); ?>
-            </div>
-        <?php endif; ?>
+        <?php require __DIR__ . '/../components/flash.php'; ?>
 
         <!-- Page View Content -->
         <?php require $content; ?>
@@ -120,5 +98,6 @@ $unreadNavCount = $navCustomerId > 0 ? Notification::getUnreadCount($navCustomer
         <p>&copy; <?= date('Y') ?> Launder Laundry LMS. Customer Self-Service Portal.</p>
     </footer>
 
+    <script src="/laundry-lms/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
 </body>
 </html>
