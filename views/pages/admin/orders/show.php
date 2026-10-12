@@ -3,24 +3,55 @@ use Faizal\LaundryLms\Helpers\Csrf;
 use Faizal\LaundryLms\Models\Order;
 
 $nextStatus = Order::getNextStatus($order['status']);
+
+// Status badge helper matching established Slice 1 & 2 design palette
+$getOrderStatusBadge = function(string $status): array {
+    $map = [
+        'pickup_request'       => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'accepted'             => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'picked_up'            => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'inspection_completed' => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'price_confirmed'      => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'processing'           => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'ready'                => ['bg' => 'bg-violet-50',  'text' => 'text-violet-700',  'border' => 'border-violet-200',  'dot' => 'bg-violet-500'],
+        'out_for_delivery'     => ['bg' => 'bg-violet-50',  'text' => 'text-violet-700',  'border' => 'border-violet-200',  'dot' => 'bg-violet-500'],
+        'delivered'            => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500'],
+        'completed'            => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500'],
+        'cancelled'            => ['bg' => 'bg-rose-50',    'text' => 'text-rose-700',    'border' => 'border-rose-200',    'dot' => 'bg-rose-500'],
+    ];
+    return $map[$status] ?? ['bg' => 'bg-slate-100', 'text' => 'text-slate-700', 'border' => 'border-slate-200', 'dot' => 'bg-slate-500'];
+};
+
+// Payment status badge helper
+$getPaymentStatusBadge = function(string $payStatus): array {
+    $map = [
+        'paid'    => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500', 'label' => 'Paid'],
+        'partial' => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500',   'label' => 'Partial Payment'],
+        'unpaid'  => ['bg' => 'bg-rose-50',    'text' => 'text-rose-700',    'border' => 'border-rose-200',    'dot' => 'bg-rose-500',    'label' => 'Unpaid'],
+    ];
+    return $map[$payStatus] ?? ['bg' => 'bg-slate-100', 'text' => 'text-slate-700', 'border' => 'border-slate-200', 'dot' => 'bg-slate-500', 'label' => ucfirst($payStatus)];
+};
+
+$statusBadge  = $getOrderStatusBadge((string)($order['status'] ?? ''));
+$paymentBadge = $getPaymentStatusBadge((string)($order['payment_status'] ?? 'unpaid'));
 ?>
 
-<div class="space-y-6 max-w-4xl mx-auto">
-    <?php require_once __DIR__ . '/../../../components/flash.php'; ?>
+<div class="space-y-6 max-w-6xl mx-auto">
 
     <!-- Header Card -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 sm:p-6 rounded-xl border border-slate-200/80 shadow-sm">
         <div>
-            <a href="/laundry-lms/orders" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 mb-2">
-                &larr; Back to Orders Directory
+            <a href="/laundry-lms/orders" class="text-xs font-medium text-slate-500 hover:text-blue-600 inline-flex items-center gap-1.5 mb-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+                <span aria-hidden="true">&larr;</span> <span>Back to Orders Directory</span>
             </a>
-            <div class="flex items-center gap-3">
-                <h2 class="text-2xl font-bold font-mono text-slate-900"><?= htmlspecialchars($order['job_id']) ?></h2>
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider <?= $order['status'] === 'cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200' ?>">
+            <div class="flex flex-wrap items-center gap-2.5">
+                <h2 class="text-2xl font-bold font-mono text-slate-900 tracking-tight"><?= htmlspecialchars($order['job_id']) ?></h2>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border <?= $statusBadge['bg'] ?> <?= $statusBadge['text'] ?> <?= $statusBadge['border'] ?>">
+                    <span class="w-1.5 h-1.5 rounded-full <?= $statusBadge['dot'] ?>"></span>
                     <?= str_replace('_', ' ', htmlspecialchars($order['status'])) ?>
                 </span>
                 <?php if (!empty($order['branch_name'])): ?>
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
                         <svg class="w-3.5 h-3.5 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
                         <?= htmlspecialchars($order['branch_name']) ?> (<?= htmlspecialchars($order['branch_code'] ?? '') ?>)
                     </span>
@@ -28,21 +59,22 @@ $nextStatus = Order::getNextStatus($order['status']);
             </div>
             <p class="text-xs text-slate-400 mt-1">Created on <?= htmlspecialchars(date('F j, Y, g:i a', strtotime($order['created_at']))) ?></p>
         </div>
-        <div class="text-right flex flex-col items-end gap-2">
+        <div class="text-right flex flex-col sm:items-end gap-2.5 w-full sm:w-auto">
             <div>
                 <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Amount</span>
-                <span class="text-2xl font-bold font-mono text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200 mt-1 uppercase">
-                    <?= htmlspecialchars($order['payment_status']) ?>
+                <span class="text-2xl font-bold font-mono text-slate-900 tabular-nums">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold uppercase tracking-wider border <?= $paymentBadge['bg'] ?> <?= $paymentBadge['text'] ?> <?= $paymentBadge['border'] ?> mt-1">
+                    <span class="w-1.5 h-1.5 rounded-full <?= $paymentBadge['dot'] ?>"></span>
+                    <?= htmlspecialchars($paymentBadge['label']) ?>
                 </span>
             </div>
             <div class="flex items-center gap-2">
-                <a href="/laundry-lms/orders/pdf?id=<?= (int)$order['id'] ?>&download=1" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 shadow-sm transition">
-                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <a href="/laundry-lms/orders/pdf?id=<?= (int)$order['id'] ?>&download=1" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
                     Download PDF
                 </a>
-                <a href="/laundry-lms/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg border border-slate-300 shadow-sm transition">
-                    <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <a href="/laundry-lms/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                     Print Job Card
                 </a>
             </div>
@@ -81,49 +113,49 @@ $nextStatus = Order::getNextStatus($order['status']);
         && ((float)$order['amount_paid'] == 0.00);
     $canReschedule = !in_array($order['status'], ['out_for_delivery', 'delivered', 'completed', 'cancelled'], true);
     ?>
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Current Workflow Stage</span>
             <div class="font-bold text-slate-900 text-lg capitalize mt-0.5"><?= str_replace('_', ' ', htmlspecialchars($order['status'])) ?></div>
         </div>
-        <div class="flex flex-wrap items-center gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
             <?php if ($order['status'] === 'cancelled'): ?>
-                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-rose-50 text-rose-700 text-sm font-semibold border border-rose-200">
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-rose-50 text-rose-700 text-xs font-semibold border border-rose-200">
                     <svg class="w-4 h-4 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Order Cancelled
                 </span>
             <?php elseif ($order['status'] === 'picked_up'): ?>
-                <button type="button" onclick="document.getElementById('inspectModal').classList.remove('hidden');" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
+                <button type="button" onclick="document.getElementById('inspectModal').classList.remove('hidden');" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
                     <span>Inspect &amp; Price Garments</span>
                 </button>
             <?php elseif ($order['status'] === 'inspection_completed'): ?>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                    <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
                         <svg class="w-3.5 h-3.5 mr-1 text-amber-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         Awaiting Customer Price Approval
                     </span>
-                    <button type="button" onclick="document.getElementById('inspectModal').classList.remove('hidden');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs transition-colors border border-slate-200">
+                    <button type="button" onclick="document.getElementById('inspectModal').classList.remove('hidden');" class="bg-white hover:bg-slate-50 text-slate-700 font-medium px-3.5 py-1.5 rounded-lg text-xs transition-colors border border-slate-300 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
                         Edit / Re-inspect
                     </button>
                     <?php if (($_SESSION['user_role'] ?? '') === 'admin'): ?>
-                        <button type="button" onclick="document.getElementById('adminOverrideModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2 rounded-xl text-xs transition-colors border border-rose-200">
+                        <button type="button" onclick="document.getElementById('adminOverrideModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium px-3.5 py-1.5 rounded-lg text-xs transition-colors border border-rose-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
                             Emergency Override
                         </button>
                     <?php endif; ?>
                 </div>
             <?php elseif ($nextStatus): ?>
-                <form action="/laundry-lms/orders/status" method="POST" class="flex items-center gap-3">
+                <form action="/laundry-lms/orders/status" method="POST" class="flex items-center gap-2.5">
                     <?= Csrf::field() ?>
                     <input type="hidden" name="id" value="<?= $order['id'] ?>">
                     <input type="hidden" name="status" value="<?= htmlspecialchars($nextStatus) ?>">
-                    <button type="submit" onclick="return confirm('Advance order status to \'<?= str_replace('_', ' ', $nextStatus) ?>\'?');" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition-colors shadow-sm flex items-center gap-2">
+                    <button type="submit" onclick="return confirm('Advance order status to \'<?= str_replace('_', ' ', $nextStatus) ?>\'?');" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors shadow-sm flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                         <span>Advance to: <strong><?= str_replace('_', ' ', htmlspecialchars($nextStatus)) ?></strong></span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
                     </button>
                 </form>
             <?php else: ?>
-                <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-sm font-semibold border border-emerald-200">
+                <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
                     <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                     Order Workflow Completed
                 </span>
@@ -132,13 +164,13 @@ $nextStatus = Order::getNextStatus($order['status']);
             <?php if ($canReschedule || $canCancel): ?>
                 <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
                     <?php if ($canReschedule): ?>
-                        <button type="button" onclick="document.getElementById('rescheduleModal').classList.remove('hidden');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs transition-colors border border-slate-300 flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="document.getElementById('rescheduleModal').classList.remove('hidden');" class="bg-white hover:bg-slate-50 text-slate-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-slate-300 flex items-center gap-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400">
                             <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             <span>Reschedule</span>
                         </button>
                     <?php endif; ?>
                     <?php if ($canCancel): ?>
-                        <button type="button" onclick="document.getElementById('cancelOrderModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-3 py-2 rounded-xl text-xs transition-colors border border-rose-200 flex items-center gap-1.5 shadow-sm">
+                        <button type="button" onclick="document.getElementById('cancelOrderModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-medium px-3 py-1.5 rounded-lg text-xs transition-colors border border-rose-200 flex items-center gap-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
                             <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             <span>Cancel</span>
                         </button>
@@ -149,35 +181,39 @@ $nextStatus = Order::getNextStatus($order['status']);
     </div>
 
     <!-- Order & Customer Details Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
         <!-- Customer Info Card -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-4">
             <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Customer Profile</h3>
             <div class="space-y-3 text-sm">
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Name</span>
-                    <span class="font-bold text-slate-900 block"><?= htmlspecialchars($order['customer_name']) ?></span>
+                    <span class="font-bold text-slate-900 block mt-0.5"><?= htmlspecialchars($order['customer_name']) ?></span>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Mobile</span>
-                    <span class="font-mono text-slate-700 block"><?= htmlspecialchars($order['customer_mobile']) ?></span>
+                    <?php $cleanTel = preg_replace('/[^\d+]/', '', (string)($order['customer_mobile'] ?? '')); ?>
+                    <a href="tel:<?= htmlspecialchars($cleanTel) ?>" class="font-mono text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded">
+                        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                        <span><?= htmlspecialchars($order['customer_mobile']) ?></span>
+                    </a>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Address</span>
-                    <span class="text-slate-700 block text-xs bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1">
-                        <?= !empty($order['customer_address']) ? nl2br(htmlspecialchars($order['customer_address'])) : 'No address provided' ?>
-                    </span>
+                    <div class="text-slate-700 text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 mt-1 whitespace-pre-wrap">
+                        <?= !empty($order['customer_address']) ? htmlspecialchars($order['customer_address']) : '<span class="text-slate-400 italic">No address provided</span>' ?>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Schedule & Staff Info Card -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Schedule & Assignment</h3>
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Schedule &amp; Assignment</h3>
             <div class="space-y-3 text-sm">
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Servicing Branch</span>
-                    <span class="font-medium text-slate-800 block">
+                    <span class="font-medium text-slate-800 block mt-0.5">
                         <?= htmlspecialchars($order['branch_name'] ?? 'Main Branch') ?>
                         <?= !empty($order['branch_code']) ? '(' . htmlspecialchars($order['branch_code']) . ')' : '' ?>
                         <?= !empty($order['branch_phone']) ? ' • ' . htmlspecialchars($order['branch_phone']) : '' ?>
@@ -188,25 +224,25 @@ $nextStatus = Order::getNextStatus($order['status']);
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Pickup Date</span>
-                    <span class="font-medium text-slate-800 block"><?= htmlspecialchars(date('F j, Y', strtotime($order['pickup_date']))) ?></span>
+                    <span class="font-medium text-slate-800 block mt-0.5"><?= htmlspecialchars(date('F j, Y', strtotime($order['pickup_date']))) ?></span>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Expected Delivery Date</span>
-                    <span class="font-medium text-slate-800 block"><?= !empty($order['delivery_date']) ? htmlspecialchars(date('F j, Y', strtotime($order['delivery_date']))) : 'Not specified' ?></span>
+                    <span class="font-medium text-slate-800 block mt-0.5"><?= !empty($order['delivery_date']) ? htmlspecialchars(date('F j, Y', strtotime($order['delivery_date']))) : '<span class="text-slate-400 italic">Not specified</span>' ?></span>
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Assigned Staff</span>
                     <?php if (!empty($order['staff_name'])): ?>
-                        <span class="font-medium text-slate-800 block"><?= htmlspecialchars($order['staff_name']) ?></span>
+                        <span class="font-medium text-slate-800 block mt-0.5"><?= htmlspecialchars($order['staff_name']) ?></span>
                     <?php else: ?>
                         <div class="flex items-center justify-between mt-1">
-                            <span class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Unassigned</span>
+                            <span class="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Unassigned</span>
                             <?php if (($_SESSION['user_role'] ?? '') === 'staff'): ?>
                                 <form action="/laundry-lms/orders/claim" method="POST" class="inline-block">
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
                                     <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1 rounded shadow-sm transition-colors">
+                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500">
                                         Claim Order
                                     </button>
                                 </form>
@@ -220,7 +256,7 @@ $nextStatus = Order::getNextStatus($order['status']);
                         <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Schedule Change History</span>
                         <div class="space-y-2">
                             <?php foreach ($metadata['reschedules'] as $rs): ?>
-                                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-1">
+                                <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs text-slate-700 space-y-1">
                                     <div class="flex justify-between font-medium">
                                         <span>Pickup: <strong><?= htmlspecialchars($rs['new_pickup_date']) ?></strong></span>
                                         <?php if (!empty($rs['new_delivery_date'])): ?>
@@ -246,54 +282,46 @@ $nextStatus = Order::getNextStatus($order['status']);
     ?>
 
     <!-- Financial & Payment Settlement Card -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+    <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
             <div>
                 <h3 class="text-base font-bold text-slate-900">Payment Settlement</h3>
                 <p class="text-xs text-slate-500 mt-0.5">Track payments and record new cash or UPI settlements.</p>
             </div>
             <div class="flex items-center gap-2">
-                <?php if ($order['payment_status'] === 'paid'): ?>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Fully Paid
-                    </span>
-                <?php elseif ($order['payment_status'] === 'partial'): ?>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
-                        Partial Payment
-                    </span>
-                <?php else: ?>
-                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                        Unpaid
-                    </span>
-                <?php endif; ?>
+                <?php $paymentBadge = $getPaymentStatusBadge($order['payment_status']); ?>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold <?= $paymentBadge['bg'] ?> <?= $paymentBadge['text'] ?> border <?= $paymentBadge['border'] ?>">
+                    <span class="w-1.5 h-1.5 rounded-full <?= $paymentBadge['dot'] ?>"></span>
+                    <?= $paymentBadge['label'] ?>
+                </span>
             </div>
         </div>
 
         <!-- Metrics Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-<?= (!empty($totalRefunded) && (float)$totalRefunded > 0) ? '4' : '3' ?> gap-4">
-            <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Order Total</span>
-                <span class="text-xl font-bold font-mono text-slate-900 block mt-1">₹<?= number_format($totalAmt, 2) ?></span>
+            <div class="bg-slate-50/70 p-4 rounded-xl border border-slate-200/80">
+                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Order Total</span>
+                <span class="text-xl sm:text-2xl font-bold font-mono tabular-nums text-slate-900 block mt-1">₹<?= number_format($totalAmt, 2) ?></span>
             </div>
-            <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-                <span class="text-xs font-semibold text-emerald-600 uppercase tracking-wider block">Net Paid</span>
-                <span class="text-xl font-bold font-mono text-emerald-700 block mt-1">₹<?= number_format($paidAmt, 2) ?></span>
+            <div class="bg-emerald-50/50 p-4 rounded-xl border border-emerald-200/60">
+                <span class="text-xs font-semibold text-emerald-700 uppercase tracking-wider block">Net Paid</span>
+                <span class="text-xl sm:text-2xl font-bold font-mono tabular-nums text-emerald-700 block mt-1">₹<?= number_format($paidAmt, 2) ?></span>
             </div>
             <?php if (!empty($totalRefunded) && (float)$totalRefunded > 0): ?>
-            <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-200">
+            <div class="bg-amber-50/50 p-4 rounded-xl border border-amber-200/60">
                 <span class="text-xs font-semibold text-amber-700 uppercase tracking-wider block">Total Refunded</span>
-                <span class="text-xl font-bold font-mono text-rose-600 block mt-1">₹<?= number_format((float)$totalRefunded, 2) ?></span>
+                <span class="text-xl sm:text-2xl font-bold font-mono tabular-nums text-rose-600 block mt-1">₹<?= number_format((float)$totalRefunded, 2) ?></span>
             </div>
             <?php endif; ?>
-            <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-100">
-                <span class="text-xs font-semibold text-rose-600 uppercase tracking-wider block">Remaining Balance</span>
-                <span class="text-xl font-bold font-mono text-rose-700 block mt-1">₹<?= number_format($remBal, 2) ?></span>
+            <div class="bg-rose-50/50 p-4 rounded-xl border border-rose-200/60">
+                <span class="text-xs font-semibold text-rose-700 uppercase tracking-wider block">Remaining Balance</span>
+                <span class="text-xl sm:text-2xl font-bold font-mono tabular-nums text-rose-700 block mt-1">₹<?= number_format($remBal, 2) ?></span>
             </div>
         </div>
 
         <!-- Record Payment Form (Shown if remaining balance > 0 and order not cancelled) -->
         <?php if ($remBal > 0 && $order['status'] !== 'cancelled'): ?>
-            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200 space-y-4">
+            <div class="bg-slate-50/70 p-5 rounded-xl border border-slate-200/80 space-y-4">
                 <h4 class="text-sm font-bold text-slate-900">Record New Payment</h4>
                 <form action="/laundry-lms/orders/payment" method="POST" class="space-y-4">
                     <?= Csrf::field() ?>
@@ -302,23 +330,23 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div>
                             <label class="block text-xs font-medium text-slate-700 mb-1">Payment Method</label>
-                            <select id="payment_method" name="payment_method" required onchange="toggleUpiField()" class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900">
+                            <select id="payment_method" name="payment_method" required onchange="toggleUpiField()" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                                 <option value="cash">Cash</option>
                                 <option value="upi">UPI</option>
                             </select>
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-700 mb-1">Amount (₹)</label>
-                            <input type="number" step="0.01" min="0.01" max="<?= sprintf('%.2f', $remBal) ?>" name="amount" value="<?= sprintf('%.2f', $remBal) ?>" required placeholder="e.g. <?= sprintf('%.2f', $remBal) ?>" class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 font-mono">
+                            <input type="number" step="0.01" min="0.01" max="<?= sprintf('%.2f', $remBal) ?>" name="amount" value="<?= sprintf('%.2f', $remBal) ?>" required placeholder="e.g. <?= sprintf('%.2f', $remBal) ?>" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono tabular-nums">
                         </div>
                         <div id="upi_ref_container" class="hidden">
                             <label class="block text-xs font-medium text-slate-700 mb-1">UPI Reference / Txn ID</label>
-                            <input type="text" id="upi_reference" name="upi_reference" placeholder="e.g. 123456789012" class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-slate-900 font-mono">
+                            <input type="text" id="upi_reference" name="upi_reference" placeholder="e.g. 123456789012" class="w-full px-3.5 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono">
                         </div>
                     </div>
 
                     <div class="flex justify-end">
-                        <button type="submit" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-5 py-2 rounded-xl text-sm transition-colors shadow-sm">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-5 py-2.5 rounded-lg text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             Submit Payment
                         </button>
                     </div>
@@ -346,28 +374,27 @@ $nextStatus = Order::getNextStatus($order['status']);
         <?php endif; ?>
 
         <!-- Payment History Audit Table -->
-        <!-- Payment History Audit Table -->
         <div>
             <h4 class="text-sm font-bold text-slate-900 mb-3">Payment History</h4>
             <?php if (empty($payments)): ?>
-                <p class="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl border border-slate-200">No payment records found for this order.</p>
+                <p class="text-xs text-slate-400 italic bg-slate-50 p-4 rounded-xl border border-slate-200/80">No payment records found for this order.</p>
             <?php else: ?>
-                <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
+                <div class="overflow-x-auto border border-slate-200/80 rounded-xl">
+                    <table class="w-full text-left text-xs min-w-[640px]">
+                        <thead class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase">
                             <tr>
-                                <th class="px-4 py-3">Date & Time</th>
-                                <th class="px-4 py-3">Method</th>
-                                <th class="px-4 py-3">UPI / Gateway Ref</th>
-                                <th class="px-4 py-3">Amount</th>
-                                <th class="px-4 py-3">Recorded By</th>
-                                <th class="px-4 py-3 text-right">Action</th>
+                                <th class="px-4 py-3 min-w-[140px]">Date & Time</th>
+                                <th class="px-4 py-3 min-w-[100px]">Method</th>
+                                <th class="px-4 py-3 min-w-[160px]">UPI / Gateway Ref</th>
+                                <th class="px-4 py-3 text-right min-w-[110px]">Amount</th>
+                                <th class="px-4 py-3 min-w-[120px]">Recorded By</th>
+                                <th class="px-4 py-3 text-right min-w-[90px]">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
                             <?php foreach ($payments as $p): ?>
                                 <tr class="hover:bg-slate-50/50">
-                                    <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($p['created_at']))) ?></td>
+                                    <td class="px-4 py-3 text-slate-600 whitespace-nowrap"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($p['created_at']))) ?></td>
                                     <td class="px-4 py-3 font-semibold uppercase text-slate-800">
                                         <?= htmlspecialchars($p['payment_method']) ?>
                                         <?php if (!empty($p['gateway'])): ?>
@@ -383,7 +410,7 @@ $nextStatus = Order::getNextStatus($order['status']);
                                             <em class="text-slate-400">N/A</em>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="px-4 py-3 font-mono font-bold text-slate-900">₹<?= number_format((float)$p['amount'], 2) ?></td>
+                                    <td class="px-4 py-3 font-mono font-bold tabular-nums text-right text-slate-900">₹<?= number_format((float)$p['amount'], 2) ?></td>
                                     <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars($p['recorded_by_name'] ?? 'System User') ?></td>
                                     <td class="px-4 py-3 text-right">
                                         <?php if ($p['payment_method'] === 'online'): ?>
@@ -418,27 +445,27 @@ $nextStatus = Order::getNextStatus($order['status']);
                     <h4 class="text-sm font-bold text-slate-900">Refund History</h4>
                     <p class="text-xs text-slate-500 mt-0.5">Audit log of customer payment reversals.</p>
                 </div>
-                <span class="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200">
+                <span class="text-xs font-semibold text-rose-700 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 font-mono tabular-nums">
                     Total Refunded: ₹<?= number_format((float)($totalRefunded ?? 0), 2) ?>
                 </span>
             </div>
-            <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                <table class="w-full text-left text-xs">
-                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
+            <div class="overflow-x-auto border border-slate-200/80 rounded-xl">
+                <table class="w-full text-left text-xs min-w-[640px]">
+                    <thead class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase">
                         <tr>
-                            <th class="px-4 py-3">Date & Time</th>
-                            <th class="px-4 py-3">Amount</th>
-                            <th class="px-4 py-3">Gateway Refund Ref</th>
-                            <th class="px-4 py-3">Reason</th>
-                            <th class="px-4 py-3">Status</th>
-                            <th class="px-4 py-3">Issued By</th>
+                            <th class="px-4 py-3 min-w-[140px]">Date & Time</th>
+                            <th class="px-4 py-3 text-right min-w-[110px]">Amount</th>
+                            <th class="px-4 py-3 min-w-[160px]">Gateway Refund Ref</th>
+                            <th class="px-4 py-3 min-w-[180px]">Reason</th>
+                            <th class="px-4 py-3 min-w-[110px]">Status</th>
+                            <th class="px-4 py-3 min-w-[110px]">Issued By</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         <?php foreach ($refunds as $rf): ?>
                             <tr class="hover:bg-slate-50/50">
-                                <td class="px-4 py-3 text-slate-600"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($rf['created_at']))) ?></td>
-                                <td class="px-4 py-3 font-mono font-bold text-rose-600">₹<?= number_format((float)$rf['amount'], 2) ?></td>
+                                <td class="px-4 py-3 text-slate-600 whitespace-nowrap"><?= htmlspecialchars(date('M d, Y, g:i a', strtotime($rf['created_at']))) ?></td>
+                                <td class="px-4 py-3 font-mono font-bold tabular-nums text-right text-rose-600">₹<?= number_format((float)$rf['amount'], 2) ?></td>
                                 <td class="px-4 py-3 font-mono text-slate-600"><?= !empty($rf['gateway_refund_id']) ? htmlspecialchars($rf['gateway_refund_id']) : '<em class="text-slate-400">Pending / Reconciling</em>' ?></td>
                                 <td class="px-4 py-3 text-slate-700"><?= htmlspecialchars($rf['reason']) ?></td>
                                 <td class="px-4 py-3">
@@ -541,30 +568,30 @@ $nextStatus = Order::getNextStatus($order['status']);
     <!-- Customer Instructions & Inspection Breakdown -->
     <div class="space-y-6">
         <!-- Order Items Breakdown Card -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
                     <h3 class="text-base font-bold text-slate-900">Order Items &amp; Service Breakdown</h3>
                     <p class="text-xs text-slate-500 mt-0.5">List of garments and requested cleaning services.</p>
                 </div>
                 <?php if (!empty($orderItems)): ?>
-                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg">
+                    <span class="px-2.5 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg font-mono tabular-nums">
                         <?= count($orderItems) ?> <?= count($orderItems) === 1 ? 'Line Item' : 'Line Items' ?>
                     </span>
                 <?php endif; ?>
             </div>
 
             <?php if (!empty($orderItems)): ?>
-                <div class="overflow-x-auto border border-slate-200 rounded-xl">
-                    <table class="w-full text-left text-xs">
-                        <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-semibold uppercase">
+                <div class="overflow-x-auto border border-slate-200/80 rounded-xl">
+                    <table class="w-full text-left text-xs min-w-[640px]">
+                        <thead class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase">
                             <tr>
                                 <th class="px-4 py-3 w-12 text-center">#</th>
-                                <th class="px-4 py-3">Item &amp; Service</th>
-                                <th class="px-4 py-3 text-right">Quantity</th>
-                                <th class="px-4 py-3 text-right">Unit Rate</th>
-                                <th class="px-4 py-3 text-right">Subtotal</th>
-                                <th class="px-4 py-3">Line Notes</th>
+                                <th class="px-4 py-3 min-w-[180px]">Item &amp; Service</th>
+                                <th class="px-4 py-3 text-right min-w-[100px]">Quantity</th>
+                                <th class="px-4 py-3 text-right min-w-[110px]">Unit Rate</th>
+                                <th class="px-4 py-3 text-right min-w-[110px]">Subtotal</th>
+                                <th class="px-4 py-3 min-w-[140px]">Line Notes</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100">
@@ -580,13 +607,13 @@ $nextStatus = Order::getNextStatus($order['status']);
                                         <?= htmlspecialchars($item['item_name']) ?>
                                         <span class="ml-1 text-slate-500 font-normal">(<?= htmlspecialchars($item['work_type_name']) ?>)</span>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-medium text-slate-700">
+                                    <td class="px-4 py-3 text-right font-mono tabular-nums text-slate-700">
                                         <?= number_format((float)$item['quantity'], $item['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-mono text-slate-600">
+                                    <td class="px-4 py-3 text-right font-mono tabular-nums text-slate-600">
                                         ₹<?= number_format((float)$item['unit_price'], 2) ?>
                                     </td>
-                                    <td class="px-4 py-3 text-right font-mono font-bold text-slate-900">
+                                    <td class="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-900">
                                         ₹<?= number_format((float)$item['subtotal'], 2) ?>
                                     </td>
                                     <td class="px-4 py-3 text-slate-500 text-xs italic">
@@ -595,26 +622,26 @@ $nextStatus = Order::getNextStatus($order['status']);
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
-                        <tfoot class="bg-slate-50 font-semibold text-slate-700 border-t border-slate-200">
+                        <tfoot class="bg-slate-50 font-semibold text-slate-700 border-t border-slate-200/80">
                             <tr>
                                 <td colspan="4" class="px-4 py-2.5 text-right uppercase text-xs tracking-wider">Items Subtotal:</td>
-                                <td class="px-4 py-2.5 text-right font-mono font-bold text-slate-900">₹<?= number_format($calcSubtotal, 2) ?></td>
+                                <td class="px-4 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">₹<?= number_format($calcSubtotal, 2) ?></td>
                                 <td></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
             <?php else: ?>
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-500 italic">
+                <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 text-xs text-slate-500 italic">
                     Legacy Order: This order has no structured order items. Items were captured in the special instructions below or during workflow.
                 </div>
             <?php endif; ?>
         </div>
 
         <!-- Customer Note Card -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-3">
             <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Customer Special Instructions</h3>
-            <p class="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 font-mono whitespace-pre-wrap"><?= !empty($customerNote) ? htmlspecialchars($customerNote) : '<em class="text-slate-400">No special instructions provided by customer.</em>' ?></p>
+            <p class="text-sm text-slate-700 bg-slate-50/70 p-4 rounded-xl border border-slate-200/80 font-mono whitespace-pre-wrap"><?= !empty($customerNote) ? htmlspecialchars($customerNote) : '<em class="text-slate-400">No special instructions provided by customer.</em>' ?></p>
         </div>
 
         <?php if (!empty($metadata['inspection'])): 
@@ -623,7 +650,7 @@ $nextStatus = Order::getNextStatus($order['status']);
             $revs = $metadata['revisions'] ?? [];
         ?>
             <!-- Inspected Service & Pricing Card -->
-            <div class="bg-white rounded-2xl border border-blue-200 shadow-sm p-6 space-y-4">
+            <div class="bg-white rounded-xl border border-blue-200/80 shadow-sm p-5 sm:p-6 space-y-4">
                 <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b border-slate-100 pb-3">
                     <div>
                         <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -635,11 +662,11 @@ $nextStatus = Order::getNextStatus($order['status']);
                         </p>
                     </div>
                     <?php if (($appr['status'] ?? '') === 'approved'): ?>
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                             Price Approved (<?= htmlspecialchars($appr['method'] === 'admin_emergency_override' ? 'Admin Override' : 'Customer Confirmed') ?>)
                         </span>
                     <?php else: ?>
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider bg-amber-50 text-amber-700 border border-amber-200">
                             Awaiting Customer Approval
                         </span>
                     <?php endif; ?>
@@ -647,34 +674,34 @@ $nextStatus = Order::getNextStatus($order['status']);
 
                 <?php if (!empty($insp['items']) && is_array($insp['items'])): ?>
                     <div class="overflow-x-auto border border-blue-100 rounded-xl">
-                        <table class="w-full text-left text-xs">
+                        <table class="w-full text-left text-xs min-w-[580px]">
                             <thead class="bg-blue-50 text-blue-800 font-semibold uppercase">
                                 <tr>
-                                    <th class="px-3 py-2">Item &amp; Service</th>
-                                    <th class="px-3 py-2 text-right">Verified Qty</th>
-                                    <th class="px-3 py-2 text-right">Unit Rate</th>
-                                    <th class="px-3 py-2 text-right">Subtotal</th>
-                                    <th class="px-3 py-2">Line Notes</th>
+                                    <th class="px-3 py-2.5 min-w-[160px]">Item &amp; Service</th>
+                                    <th class="px-3 py-2.5 text-right min-w-[100px]">Verified Qty</th>
+                                    <th class="px-3 py-2.5 text-right min-w-[100px]">Unit Rate</th>
+                                    <th class="px-3 py-2.5 text-right min-w-[100px]">Subtotal</th>
+                                    <th class="px-3 py-2.5 min-w-[120px]">Line Notes</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-blue-50 bg-white">
                                 <?php foreach ($insp['items'] as $itLine): 
                                     $unitStr = ($itLine['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
                                 ?>
-                                    <tr>
-                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                    <tr class="hover:bg-blue-50/30">
+                                        <td class="px-3 py-2.5 font-medium text-slate-800">
                                             <?= htmlspecialchars($itLine['item_name']) ?> <span class="text-slate-500">(<?= htmlspecialchars($itLine['work_type_name']) ?>)</span>
                                         </td>
-                                        <td class="px-3 py-2 text-right text-slate-700">
+                                        <td class="px-3 py-2.5 text-right font-mono tabular-nums text-slate-700">
                                             <?= number_format((float)$itLine['quantity'], $itLine['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                        <td class="px-3 py-2.5 text-right font-mono tabular-nums text-slate-600">
                                             ₹<?= number_format((float)$itLine['unit_price'], 2) ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                        <td class="px-3 py-2.5 text-right font-mono tabular-nums font-bold text-slate-900">
                                             ₹<?= number_format((float)$itLine['subtotal'], 2) ?>
                                         </td>
-                                        <td class="px-3 py-2 text-slate-500 italic">
+                                        <td class="px-3 py-2.5 text-slate-500 italic">
                                             <?= !empty($itLine['item_notes']) ? htmlspecialchars($itLine['item_notes']) : '—' ?>
                                         </td>
                                     </tr>
@@ -682,30 +709,30 @@ $nextStatus = Order::getNextStatus($order['status']);
                             </tbody>
                         </table>
                     </div>
-                    <div class="flex flex-col sm:flex-row justify-end items-end gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div>Items Subtotal: <strong>₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
-                        <span class="hidden sm:inline">&bull;</span>
-                        <div>Fees: <strong>₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
-                        <span class="hidden sm:inline">&bull;</span>
-                        <div class="text-sm font-bold text-blue-700">Final Inspected Total: ₹<?= number_format((float)$insp['calculated_total'], 2) ?></div>
+                    <div class="flex flex-col sm:flex-row justify-end items-end gap-2 text-xs text-slate-600 bg-slate-50/70 p-3 rounded-xl border border-slate-200/80">
+                        <div>Items Subtotal: <strong class="font-mono tabular-nums">₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
+                        <span class="hidden sm:inline text-slate-300">&bull;</span>
+                        <div>Fees: <strong class="font-mono tabular-nums">₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
+                        <span class="hidden sm:inline text-slate-300">&bull;</span>
+                        <div class="text-sm font-bold text-blue-700">Final Inspected Total: <span class="font-mono tabular-nums">₹<?= number_format((float)$insp['calculated_total'], 2) ?></span></div>
                     </div>
                 <?php else: ?>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm bg-slate-50/70 p-4 rounded-xl border border-slate-200/80">
                         <div>
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Service</span>
                             <span class="font-bold text-slate-800"><?= htmlspecialchars($insp['item_name'] ?? '') ?> (<?= htmlspecialchars($insp['work_type_name'] ?? '') ?>)</span>
                         </div>
                         <div>
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Verified Quantity</span>
-                            <span class="font-bold text-slate-800"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                            <span class="font-bold font-mono tabular-nums text-slate-800"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
                         </div>
                         <div>
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Unit Rate</span>
-                            <span class="font-bold text-slate-800">₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?> / <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                            <span class="font-bold font-mono tabular-nums text-slate-800">₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?> / <?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
                         </div>
                         <div>
                             <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Calculated Total</span>
-                            <span class="font-mono font-bold text-blue-700 text-base">₹<?= number_format((float)($insp['calculated_total'] ?? 0), 2) ?></span>
+                            <span class="font-mono tabular-nums font-bold text-blue-700 text-base">₹<?= number_format((float)$insp['calculated_total'], 2) ?></span>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -729,10 +756,10 @@ $nextStatus = Order::getNextStatus($order['status']);
                             <?php foreach ($revs as $idx => $r): ?>
                                 <div class="flex items-center justify-between bg-white border border-slate-200 p-2.5 rounded-lg">
                                     <div>
-                                        <span class="font-semibold text-slate-800">Rev #<?= $idx + 1 ?>: ₹<?= number_format((float)$r['previous_total'], 2) ?> &rarr; ₹<?= number_format((float)$r['new_total'], 2) ?></span>
+                                        <span class="font-semibold text-slate-800">Rev #<?= $idx + 1 ?>: <span class="font-mono tabular-nums">₹<?= number_format((float)$r['previous_total'], 2) ?></span> &rarr; <span class="font-mono tabular-nums">₹<?= number_format((float)$r['new_total'], 2) ?></span></span>
                                         <span class="text-slate-500 ml-2">(<?= htmlspecialchars($r['reason'] ?? '') ?>)</span>
                                     </div>
-                                    <span class="text-slate-400"><?= htmlspecialchars(date('M d, Y h:i A', strtotime($r['revised_at']))) ?></span>
+                                    <span class="text-slate-400 whitespace-nowrap"><?= htmlspecialchars(date('M d, Y h:i A', strtotime($r['revised_at']))) ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -743,7 +770,7 @@ $nextStatus = Order::getNextStatus($order['status']);
     </div>
 
     <!-- Status History Timeline -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+    <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 sm:p-6 space-y-4">
         <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Status Audit History</h3>
         
         <div class="relative pl-6 border-l-2 border-slate-200 space-y-6">
