@@ -2,46 +2,75 @@
 use Faizal\LaundryLms\Helpers\Security;
 use Faizal\LaundryLms\Helpers\Csrf;
 
-$outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'], 2);
+$outstanding = max(0, round((float)$order['total_amount'] - (float)$order['amount_paid'], 2));
+
+// Semantic status badge styling helper matching Phase 19 standard palette
+$getOrderStatusBadge = function(string $status): array {
+    $map = [
+        'pickup_request'       => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'accepted'             => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'picked_up'            => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500'],
+        'inspection_completed' => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'price_confirmed'      => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'processing'           => ['bg' => 'bg-sky-50',     'text' => 'text-sky-700',     'border' => 'border-sky-200',     'dot' => 'bg-sky-500'],
+        'ready'                => ['bg' => 'bg-violet-50',  'text' => 'text-violet-700',  'border' => 'border-violet-200',  'dot' => 'bg-violet-500'],
+        'out_for_delivery'     => ['bg' => 'bg-violet-50',  'text' => 'text-violet-700',  'border' => 'border-violet-200',  'dot' => 'bg-violet-500'],
+        'delivered'            => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500'],
+        'completed'            => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500'],
+        'cancelled'            => ['bg' => 'bg-rose-50',    'text' => 'text-rose-700',    'border' => 'border-rose-200',    'dot' => 'bg-rose-500'],
+    ];
+    return $map[$status] ?? ['bg' => 'bg-slate-100', 'text' => 'text-slate-700', 'border' => 'border-slate-200', 'dot' => 'bg-slate-500'];
+};
+
+// Payment status badge helper with dot indicator
+$getPaymentStatusBadge = function(string $payStatus): array {
+    $map = [
+        'paid'    => ['bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'border' => 'border-emerald-200', 'dot' => 'bg-emerald-500', 'label' => 'Paid'],
+        'partial' => ['bg' => 'bg-amber-50',   'text' => 'text-amber-700',   'border' => 'border-amber-200',   'dot' => 'bg-amber-500',   'label' => 'Partial'],
+        'unpaid'  => ['bg' => 'bg-rose-50',    'text' => 'text-rose-700',    'border' => 'border-rose-200',    'dot' => 'bg-rose-500',    'label' => 'Unpaid'],
+    ];
+    return $map[$payStatus] ?? ['bg' => 'bg-slate-100', 'text' => 'text-slate-700', 'border' => 'border-slate-200', 'dot' => 'bg-slate-500', 'label' => ucfirst($payStatus)];
+};
+
+$stBadge  = $getOrderStatusBadge((string)($order['status'] ?? ''));
+$payBadge = $getPaymentStatusBadge((string)($order['payment_status'] ?? 'unpaid'));
 ?>
 
 <div class="space-y-6">
 
-    <!-- Top Navigation & Order Title -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- Top Navigation & Order Title Header Card -->
+    <div class="bg-white p-5 sm:p-6 rounded-xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-            <a href="/laundry-lms/customer/orders" class="text-xs font-semibold text-blue-600 hover:underline inline-flex items-center mb-1">
-                &larr; Back to My Orders
+            <a href="/laundry-lms/customer/orders" class="text-xs font-medium text-slate-500 hover:text-blue-600 inline-flex items-center gap-1.5 mb-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded">
+                <span aria-hidden="true">&larr;</span> <span>Back to My Orders</span>
             </a>
-            <h1 class="text-2xl font-bold text-slate-800 font-display">Order #<?= Security::e($order['job_id']) ?></h1>
-            <div class="flex items-center gap-2 mt-1">
-                <p class="text-xs text-slate-500">Placed on <?= date('F d, Y \a\t h:i A', strtotime($order['created_at'])) ?></p>
+            <div class="flex flex-wrap items-center gap-2.5">
+                <h1 class="text-2xl font-bold font-mono text-slate-900 tracking-tight">Order #<?= Security::e($order['job_id']) ?></h1>
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border <?= $stBadge['bg'] ?> <?= $stBadge['text'] ?> <?= $stBadge['border'] ?>">
+                    <span class="w-1.5 h-1.5 rounded-full <?= $stBadge['dot'] ?>"></span>
+                    <?= Security::e(str_replace('_', ' ', $order['status'])) ?>
+                </span>
+                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider border <?= $payBadge['bg'] ?> <?= $payBadge['text'] ?> <?= $payBadge['border'] ?>">
+                    <span class="w-1.5 h-1.5 rounded-full <?= $payBadge['dot'] ?>"></span>
+                    <?= Security::e($payBadge['label']) ?>
+                </span>
                 <?php if (!empty($order['branch_name'])): ?>
-                    <span class="text-xs text-slate-400">•</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                        Branch: <?= Security::e($order['branch_name']) ?>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200" title="<?= Security::e($order['branch_name']) ?>">
+                        <?= Security::e($order['branch_code'] ?? ($order['branch_name'] ?? 'Branch')) ?>
                     </span>
                 <?php endif; ?>
             </div>
+            <p class="text-xs text-slate-400 mt-1">Placed on <?= date('F d, Y \a\t h:i A', strtotime($order['created_at'])) ?></p>
         </div>
-        <div class="flex items-center space-x-3">
-            <a href="/laundry-lms/customer/orders/pdf?id=<?= (int)$order['id'] ?>&download=1" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition">
-                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                Download PDF
+        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+            <a href="/laundry-lms/customer/orders/pdf?id=<?= (int)$order['id'] ?>&download=1" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Download PDF</span>
             </a>
-            <a href="/laundry-lms/customer/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition">
-                <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                Print Receipt
+            <a href="/laundry-lms/customer/orders/print?id=<?= (int)$order['id'] ?>" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 rounded-lg border border-slate-300 shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <span>Print Receipt</span>
             </a>
-            <?php if ($order['status'] === 'cancelled'): ?>
-                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
-                    Status: Cancelled
-                </span>
-            <?php else: ?>
-                <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-100 text-blue-800 border border-blue-200">
-                    Status: <?= Security::e(str_replace('_', ' ', $order['status'])) ?>
-                </span>
-            <?php endif; ?>
         </div>
     </div>
 
@@ -50,15 +79,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
         $rej  = $metadata['rejection'] ?? [];
     ?>
         <!-- Order Cancelled Banner -->
-        <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-6 shadow-sm space-y-3">
+        <div class="bg-rose-50 border-2 border-rose-300 rounded-xl p-5 sm:p-6 shadow-sm space-y-3">
             <div class="flex items-start gap-3">
-                <div class="p-2 bg-rose-100 rounded-xl text-rose-700">
+                <div class="p-2 bg-rose-100 rounded-xl text-rose-700 shrink-0">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 </div>
                 <div class="flex-1">
-                    <h2 class="text-lg font-bold text-rose-900">Order Cancelled</h2>
-                    <p class="text-sm text-rose-700 mt-1">This order is cancelled and permanently terminal. No further services or transactions will take place.</p>
-                    <div class="mt-3 bg-white p-3 rounded-xl border border-rose-200 text-xs space-y-1.5 text-slate-700">
+                    <h2 class="text-base sm:text-lg font-bold text-rose-900">Order Cancelled</h2>
+                    <p class="text-xs sm:text-sm text-rose-700 mt-0.5">This order is cancelled and permanently terminal. No further services or transactions will take place.</p>
+                    <div class="mt-3 bg-white p-3.5 rounded-xl border border-rose-200 text-xs space-y-1 text-slate-700">
                         <div><strong class="text-slate-900">Reason:</strong> <?= htmlspecialchars($canc['reason'] ?? ($rej['reason'] ?? 'Order cancelled')) ?></div>
                         <div><strong class="text-slate-900">Cancelled On:</strong> <?= !empty($canc['cancelled_at']) ? date('F d, Y \a\t h:i A', strtotime($canc['cancelled_at'])) : date('F d, Y', strtotime($order['updated_at'])) ?></div>
                         <div><strong class="text-slate-900">Initiated By:</strong> <?= ucfirst(htmlspecialchars((string)($canc['cancelled_by_role'] ?? 'user'))) ?></div>
@@ -70,14 +99,14 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
 
     <?php if ($order['status'] === 'inspection_completed'): ?>
         <!-- Price Approval Required Card -->
-        <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-4">
+        <div class="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 sm:p-6 shadow-sm space-y-4">
             <div class="flex items-start gap-3">
-                <div class="p-2 bg-amber-100 rounded-xl text-amber-700">
+                <div class="p-2 bg-amber-100 rounded-xl text-amber-700 shrink-0">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
                 </div>
                 <div class="flex-1">
-                    <h2 class="text-lg font-bold text-amber-900">Action Required: Review &amp; Approve Your Final Price</h2>
-                    <p class="text-sm text-amber-700 mt-1">Our shop staff has inspected and weighed your garments. Please review the verified price details below to authorize processing.</p>
+                    <h2 class="text-base sm:text-lg font-bold text-amber-900">Action Required: Review &amp; Approve Your Final Price</h2>
+                    <p class="text-xs sm:text-sm text-amber-700 mt-0.5">Our shop staff has inspected and weighed your garments. Please review the verified price details below to authorize processing.</p>
                 </div>
             </div>
 
@@ -87,37 +116,37 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                 $latestRev = !empty($revs) ? end($revs) : null;
                 $prevTotal = $latestRev['previous_total'] ?? $order['total_amount'];
             ?>
-            <div class="bg-white rounded-xl border border-amber-200 p-4 space-y-3">
+            <div class="bg-white rounded-xl border border-amber-200/80 p-4 sm:p-5 space-y-4 shadow-sm">
                 <?php if (!empty($insp['items']) && is_array($insp['items'])): ?>
                     <div class="overflow-x-auto border border-amber-200/70 rounded-xl">
-                        <table class="w-full text-left text-xs">
-                            <thead class="bg-amber-50 text-amber-900 font-semibold uppercase">
+                        <table class="w-full text-left text-xs min-w-[560px]">
+                            <thead class="bg-amber-50 text-amber-900 font-semibold uppercase tracking-wider">
                                 <tr>
-                                    <th class="px-3 py-2">Item &amp; Service</th>
-                                    <th class="px-3 py-2 text-right">Verified Qty</th>
-                                    <th class="px-3 py-2 text-right">Unit Rate</th>
-                                    <th class="px-3 py-2 text-right">Subtotal</th>
-                                    <th class="px-3 py-2">Notes</th>
+                                    <th class="px-3.5 py-2.5">Item &amp; Service</th>
+                                    <th class="px-3.5 py-2.5 text-right">Verified Qty</th>
+                                    <th class="px-3.5 py-2.5 text-right">Unit Rate</th>
+                                    <th class="px-3.5 py-2.5 text-right">Subtotal</th>
+                                    <th class="px-3.5 py-2.5">Notes</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-amber-100 bg-white">
+                            <tbody class="divide-y divide-amber-100 bg-white text-slate-700">
                                 <?php foreach ($insp['items'] as $itLine): 
                                     $unitStr = ($itLine['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
                                 ?>
                                     <tr>
-                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                        <td class="px-3.5 py-2.5 font-medium text-slate-800">
                                             <?= htmlspecialchars($itLine['item_name']) ?> <span class="text-slate-500">(<?= htmlspecialchars($itLine['work_type_name']) ?>)</span>
                                         </td>
-                                        <td class="px-3 py-2 text-right text-slate-700">
+                                        <td class="px-3.5 py-2.5 text-right text-slate-700 font-medium">
                                             <?= number_format((float)$itLine['quantity'], $itLine['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                        <td class="px-3.5 py-2.5 text-right font-mono text-slate-600 tabular-nums">
                                             ₹<?= number_format((float)$itLine['unit_price'], 2) ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                        <td class="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">
                                             ₹<?= number_format((float)$itLine['subtotal'], 2) ?>
                                         </td>
-                                        <td class="px-3 py-2 text-slate-500 italic">
+                                        <td class="px-3.5 py-2.5 text-slate-500 italic">
                                             <?= !empty($itLine['item_notes']) ? htmlspecialchars($itLine['item_notes']) : '—' ?>
                                         </td>
                                     </tr>
@@ -126,15 +155,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                         </table>
                     </div>
                     <div class="flex flex-col sm:flex-row justify-end items-end gap-3 text-xs text-slate-600 bg-amber-50/50 p-2.5 rounded-lg border border-amber-100">
-                        <div>Items Subtotal: <strong>₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
+                        <div>Items Subtotal: <strong class="font-mono tabular-nums">₹<?= number_format((float)($insp['items_subtotal'] ?? 0), 2) ?></strong></div>
                         <span class="hidden sm:inline">&bull;</span>
-                        <div>Pickup/Delivery Fee: <strong>₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
+                        <div>Pickup/Delivery Fee: <strong class="font-mono tabular-nums">₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></strong></div>
                     </div>
                 <?php else: ?>
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                         <div>
                             <span class="text-slate-400 block font-medium">Initial Estimate</span>
-                            <span class="font-bold text-slate-700 text-sm">₹<?= number_format((float)$prevTotal, 2) ?></span>
+                            <span class="font-bold text-slate-700 text-sm font-mono tabular-nums">₹<?= number_format((float)$prevTotal, 2) ?></span>
                         </div>
                         <div>
                             <span class="text-slate-400 block font-medium">Verified Service</span>
@@ -142,31 +171,31 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                         </div>
                         <div>
                             <span class="text-slate-400 block font-medium">Measured Quantity</span>
-                            <span class="font-bold text-slate-800 text-sm"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?> @ ₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?>/<?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
+                            <span class="font-bold text-slate-800 text-sm font-mono tabular-nums"><?= number_format((float)($insp['quantity'] ?? 0), 2) ?> <?= htmlspecialchars($insp['unit_label'] ?? '') ?> @ ₹<?= number_format((float)($insp['unit_price'] ?? 0), 2) ?>/<?= htmlspecialchars($insp['unit_label'] ?? '') ?></span>
                         </div>
                         <div>
                             <span class="text-slate-400 block font-medium">Delivery Fees</span>
-                            <span class="font-bold text-slate-800 text-sm">₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></span>
+                            <span class="font-bold text-slate-800 text-sm font-mono tabular-nums">₹<?= number_format((float)(($insp['pickup_fee'] ?? 0) + ($insp['delivery_fee'] ?? 0)), 2) ?></span>
                         </div>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($insp['garment_notes'])): ?>
-                    <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-slate-700">
+                    <div class="text-xs bg-slate-50 p-3 rounded-lg border border-slate-200 text-slate-700">
                         <strong>Garment Condition Notes:</strong> <?= htmlspecialchars($insp['garment_notes']) ?>
                     </div>
                 <?php endif; ?>
 
                 <?php if (!empty($latestRev['reason']) && $latestRev['reason'] !== 'Initial inspection completed'): ?>
-                    <div class="text-xs bg-blue-50 p-2.5 rounded-lg border border-blue-200 text-blue-800">
+                    <div class="text-xs bg-blue-50 p-3 rounded-lg border border-blue-200 text-blue-800">
                         <strong>Price Adjustment Reason:</strong> <?= htmlspecialchars($latestRev['reason']) ?>
                     </div>
                 <?php endif; ?>
 
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 border-t border-slate-100">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-3 border-t border-slate-100">
                     <div>
                         <span class="text-xs text-slate-500 block">Final Inspected Total:</span>
-                        <span class="text-2xl font-bold font-mono text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
+                        <span class="text-2xl font-bold font-mono text-slate-900 tabular-nums">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-3">
@@ -174,13 +203,13 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                             <?= Csrf::field() ?>
                             <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
                             <input type="hidden" name="expected_revision" value="<?= htmlspecialchars((string)($metadata['inspection_revision'] ?? '')) ?>">
-                            <button type="submit" onclick="return confirm('Confirm and approve final order price of ₹<?= number_format((float)$order['total_amount'], 2) ?>?');" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2">
+                            <button type="submit" onclick="return confirm('Confirm and approve final order price of ₹<?= number_format((float)$order['total_amount'], 2) ?>?');" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs shadow-md transition-all flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                 <span>Approve Final Price (₹<?= number_format((float)$order['total_amount'], 2) ?>)</span>
                             </button>
                         </form>
 
-                        <button type="button" onclick="document.getElementById('rejectPriceModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2.5 rounded-xl text-xs border border-rose-200 transition-colors flex items-center gap-1.5">
+                        <button type="button" onclick="document.getElementById('rejectPriceModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-4 py-2.5 rounded-xl text-xs border border-rose-200 transition-colors flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-rose-500">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                             <span>Reject &amp; Cancel</span>
                         </button>
@@ -196,15 +225,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
     <?php endif; ?>
 
     <!-- Summary Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         <!-- Column 1 & 2: Order Information & Financials -->
-        <div class="md:col-span-2 space-y-6">
+        <div class="lg:col-span-2 space-y-6">
             
             <!-- Dates & Address Card -->
-            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Schedule &amp; Delivery</h3>
+            <div class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Schedule &amp; Delivery</h3>
                     <?php 
                     $canCustomerReschedule = in_array($order['status'], ['pickup_request', 'accepted'], true);
                     $canCustomerCancel = ($order['status'] === 'pickup_request') && ((float)$order['amount_paid'] == 0.00);
@@ -212,13 +241,13 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                     <?php if ($canCustomerReschedule || $canCustomerCancel): ?>
                         <div class="flex items-center gap-2">
                             <?php if ($canCustomerReschedule): ?>
-                                <button type="button" onclick="document.getElementById('reschedulePickupModal').classList.remove('hidden');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded-lg text-xs border border-slate-300 transition-colors flex items-center gap-1">
+                                <button type="button" onclick="document.getElementById('reschedulePickupModal').classList.remove('hidden');" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-2.5 py-1 rounded-lg text-xs border border-slate-300 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                                     <span>Reschedule</span>
                                 </button>
                             <?php endif; ?>
                             <?php if ($canCustomerCancel): ?>
-                                <button type="button" onclick="document.getElementById('cancelOrderModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-2.5 py-1 rounded-lg text-xs border border-rose-200 transition-colors flex items-center gap-1">
+                                <button type="button" onclick="document.getElementById('cancelOrderModal').classList.remove('hidden');" class="bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold px-2.5 py-1 rounded-lg text-xs border border-rose-200 transition-colors flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-rose-500">
                                     <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                     <span>Cancel</span>
                                 </button>
@@ -266,26 +295,26 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
             </div>
 
             <!-- Order Items Breakdown Card -->
-            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
-                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Order Items &amp; Services</h3>
+            <div class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+                <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Order Items &amp; Services</h3>
                     <?php if (!empty($orderItems)): ?>
                         <span class="text-xs text-slate-500 font-medium"><?= count($orderItems) ?> item(s)</span>
                     <?php endif; ?>
                 </div>
 
                 <?php if (!empty($orderItems)): ?>
-                    <div class="overflow-x-auto border border-slate-200 rounded-lg">
-                        <table class="w-full text-left text-xs">
+                    <div class="overflow-x-auto border border-slate-200/80 rounded-lg">
+                        <table class="w-full text-left text-xs min-w-[480px]">
                             <thead class="bg-slate-50 text-slate-500 uppercase font-semibold border-b border-slate-200">
                                 <tr>
-                                    <th class="px-3 py-2">Item &amp; Service</th>
-                                    <th class="px-3 py-2 text-right">Quantity</th>
-                                    <th class="px-3 py-2 text-right">Rate</th>
-                                    <th class="px-3 py-2 text-right">Subtotal</th>
+                                    <th class="px-3.5 py-2.5">Item &amp; Service</th>
+                                    <th class="px-3.5 py-2.5 text-right">Quantity</th>
+                                    <th class="px-3.5 py-2.5 text-right">Rate</th>
+                                    <th class="px-3.5 py-2.5 text-right">Subtotal</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-slate-100 text-slate-700">
                                 <?php 
                                 $cSubtotal = 0.00;
                                 foreach ($orderItems as $item): 
@@ -293,20 +322,20 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                                     $unitStr = ($item['pricing_type'] === 'per_kg') ? 'kg' : 'pcs';
                                 ?>
                                     <tr>
-                                        <td class="px-3 py-2 font-medium text-slate-800">
+                                        <td class="px-3.5 py-2.5 font-medium text-slate-800">
                                             <?= htmlspecialchars($item['item_name']) ?>
                                             <span class="text-slate-500 text-[11px] block sm:inline">(<?= htmlspecialchars($item['work_type_name']) ?>)</span>
                                             <?php if (!empty($item['item_notes'])): ?>
                                                 <span class="text-slate-400 text-[11px] block italic"><?= htmlspecialchars($item['item_notes']) ?></span>
                                             <?php endif; ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right text-slate-700">
+                                        <td class="px-3.5 py-2.5 text-right text-slate-700 font-medium">
                                             <?= number_format((float)$item['quantity'], $item['pricing_type'] === 'per_kg' ? 2 : 0) ?> <?= $unitStr ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono text-slate-600">
+                                        <td class="px-3.5 py-2.5 text-right font-mono text-slate-600 tabular-nums">
                                             ₹<?= number_format((float)$item['unit_price'], 2) ?>
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">
+                                        <td class="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">
                                             ₹<?= number_format((float)$item['subtotal'], 2) ?>
                                         </td>
                                     </tr>
@@ -314,8 +343,8 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                             </tbody>
                             <tfoot class="bg-slate-50 font-semibold text-slate-700 border-t border-slate-200">
                                 <tr>
-                                    <td colspan="3" class="px-3 py-2 text-right uppercase text-[11px]">Items Subtotal:</td>
-                                    <td class="px-3 py-2 text-right font-mono font-bold text-slate-900">₹<?= number_format($cSubtotal, 2) ?></td>
+                                    <td colspan="3" class="px-3.5 py-2.5 text-right uppercase text-[11px]">Items Subtotal:</td>
+                                    <td class="px-3.5 py-2.5 text-right font-mono font-bold text-slate-900 tabular-nums">₹<?= number_format($cSubtotal, 2) ?></td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -328,46 +357,51 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
             </div>
 
             <!-- Customer Special Instructions -->
-            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Special Instructions</h3>
+            <div class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-3">
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Special Instructions</h3>
                 <div class="bg-slate-50 p-4 rounded-lg text-sm font-mono text-slate-800 whitespace-pre-line border border-slate-200">
                     <?= !empty($customerNote) ? Security::e($customerNote) : '<em class="text-slate-400 font-sans">No special instructions provided.</em>' ?>
                 </div>
             </div>
 
+        </div>
+
+        <!-- Column 3: Payment Breakdown & Status Timeline -->
+        <div class="space-y-6">
+
             <!-- Payment Summary Card -->
-            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Payment Breakdown</h3>
+            <div class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Payment Breakdown</h3>
                 
-                <div class="space-y-2 text-sm">
+                <div class="space-y-2.5 text-sm">
                     <div class="flex justify-between py-1">
                         <span class="text-slate-600">Total Order Amount:</span>
-                        <span class="font-bold text-slate-900">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
+                        <span class="font-bold font-mono text-slate-900 tabular-nums">₹<?= number_format((float)$order['total_amount'], 2) ?></span>
                     </div>
                     <?php if (!empty($totalRefunded) && (float)$totalRefunded > 0): ?>
                     <div class="flex justify-between py-1 border-t border-slate-100">
                         <span class="text-slate-600">Total Refunded:</span>
-                        <span class="font-semibold text-rose-600">-₹<?= number_format((float)$totalRefunded, 2) ?></span>
+                        <span class="font-semibold font-mono text-rose-600 tabular-nums">-₹<?= number_format((float)$totalRefunded, 2) ?></span>
                     </div>
                     <div class="flex justify-between py-1 border-t border-slate-100">
                         <span class="text-slate-600 font-medium">Net Paid:</span>
-                        <span class="font-semibold text-emerald-700">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
+                        <span class="font-semibold font-mono text-emerald-700 tabular-nums">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
                     </div>
                     <?php else: ?>
                     <div class="flex justify-between py-1 border-t border-slate-100">
                         <span class="text-slate-600">Amount Paid:</span>
-                        <span class="font-semibold text-emerald-600">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
+                        <span class="font-semibold font-mono text-emerald-600 tabular-nums">₹<?= number_format((float)$order['amount_paid'], 2) ?></span>
                     </div>
                     <?php endif; ?>
-                    <div class="flex justify-between py-1 border-t border-slate-100 text-base">
-                        <span class="font-bold text-slate-800">Outstanding Balance:</span>
-                        <span class="font-bold <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-800' ?>">₹<?= number_format($outstanding, 2) ?></span>
+                    <div class="flex justify-between py-2 border-t border-slate-200 text-base">
+                        <span class="font-bold text-slate-900">Outstanding Balance:</span>
+                        <span class="font-bold font-mono tabular-nums <?= $outstanding > 0 ? 'text-rose-600' : 'text-slate-900' ?>">₹<?= number_format($outstanding, 2) ?></span>
                     </div>
                 </div>
 
                 <?php if ($outstanding > 0 && $order['status'] !== 'cancelled'): ?>
                     <div class="pt-2">
-                        <button type="button" id="payOnlineBtn" onclick="document.getElementById('payOnlineModal').classList.remove('hidden');" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2">
+                        <button type="button" id="payOnlineBtn" onclick="document.getElementById('payOnlineModal').classList.remove('hidden');" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs transition-colors shadow-sm flex items-center justify-center gap-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                             <span>Pay Online (₹<?= number_format($outstanding, 2) ?>)</span>
                         </button>
@@ -380,17 +414,17 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                         <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Recorded Payments</h4>
                         <div class="space-y-2">
                             <?php foreach ($payments as $pmt): ?>
-                                <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded border border-slate-100">
+                                <div class="flex items-center justify-between text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-200/80">
                                     <div>
-                                        <span class="font-semibold text-slate-800">₹<?= number_format((float)$pmt['amount'], 2) ?></span>
+                                        <span class="font-bold font-mono text-slate-900 tabular-nums">₹<?= number_format((float)$pmt['amount'], 2) ?></span>
                                         <span class="text-slate-500 uppercase ml-1">(<?= Security::e($pmt['payment_method']) ?>)</span>
                                         <?php if (!empty($pmt['upi_reference'])): ?>
-                                            <span class="text-slate-400 block font-mono">Ref: <?= Security::e($pmt['upi_reference']) ?></span>
+                                            <span class="text-slate-400 block font-mono text-[10px]">Ref: <?= Security::e($pmt['upi_reference']) ?></span>
                                         <?php elseif (!empty($pmt['gateway_payment_id'])): ?>
-                                            <span class="text-slate-400 block font-mono">Ref: <?= Security::e($pmt['gateway_payment_id']) ?> (<?= Security::e(strtoupper($pmt['gateway'] ?? 'online')) ?>)</span>
+                                            <span class="text-slate-400 block font-mono text-[10px]">Ref: <?= Security::e($pmt['gateway_payment_id']) ?> (<?= Security::e(strtoupper($pmt['gateway'] ?? 'online')) ?>)</span>
                                         <?php endif; ?>
                                     </div>
-                                    <span class="text-slate-400"><?= date('M d, Y h:i A', strtotime($pmt['created_at'])) ?></span>
+                                    <span class="text-slate-400 text-[11px]"><?= date('M d, Y h:i A', strtotime($pmt['created_at'])) ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -402,15 +436,15 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                     <div class="mt-4 pt-3 border-t border-slate-200">
                         <div class="flex justify-between items-center mb-2">
                             <h4 class="text-xs font-bold text-rose-600 uppercase tracking-wider">Refund History</h4>
-                            <span class="text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                            <span class="text-[11px] font-bold font-mono text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 tabular-nums">
                                 Total: -₹<?= number_format((float)($totalRefunded ?? 0), 2) ?>
                             </span>
                         </div>
                         <div class="space-y-2">
                             <?php foreach ($refunds as $rf): ?>
-                                <div class="text-xs bg-rose-50/50 p-2.5 rounded border border-rose-100 space-y-1">
+                                <div class="text-xs bg-rose-50/50 p-2.5 rounded-lg border border-rose-200/80 space-y-1">
                                     <div class="flex items-center justify-between">
-                                        <span class="font-bold text-rose-700">₹<?= number_format((float)$rf['amount'], 2) ?></span>
+                                        <span class="font-bold font-mono text-rose-700 tabular-nums">₹<?= number_format((float)$rf['amount'], 2) ?></span>
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider <?= $rf['status'] === 'processed' ? 'bg-emerald-100 text-emerald-800' : ($rf['status'] === 'pending' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800') ?>">
                                             <?= htmlspecialchars($rf['status']) ?>
                                         </span>
@@ -433,12 +467,9 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                 <?php endif; ?>
             </div>
 
-        </div>
-
-        <!-- Column 3: Order Workflow Timeline -->
-        <div class="space-y-6">
-            <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">Status Timeline</h3>
+            <!-- Status Timeline Card -->
+            <div class="bg-white rounded-xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">Status Timeline</h3>
                 
                 <?php if (empty($history)): ?>
                     <p class="text-xs text-slate-400">No status history recorded yet.</p>
@@ -456,9 +487,11 @@ $outstanding = round((float)$order['total_amount'] - (float)$order['amount_paid'
                     </div>
                 <?php endif; ?>
             </div>
+
         </div>
 
     </div>
+
 
     <!-- Reject Inspected Price Modal -->
     <div id="rejectPriceModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
