@@ -25,7 +25,7 @@ $role = (string)($_SESSION['user_role'] ?? '');
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= Security::e($title ?? 'Admin - Launder') ?></title>
+    <title><?= Security::e($title ?? 'Admin - Laundry') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
@@ -34,7 +34,7 @@ $role = (string)($_SESSION['user_role'] ?? '');
     <!-- Desktop Sidebar -->
     <aside class="w-64 bg-slate-900 text-white flex-col hidden md:flex shrink-0">
         <div class="h-16 flex items-center px-6 border-b border-slate-800 space-x-2">
-            <span class="font-display font-bold text-xl tracking-tight text-white">Launder</span>
+            <span class="font-display font-bold text-xl tracking-tight text-white">Laundry</span>
             <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Admin</span>
         </div>
         <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
@@ -91,7 +91,7 @@ $role = (string)($_SESSION['user_role'] ?? '');
         <div id="mobile-drawer" class="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-900 text-white shadow-2xl flex flex-col transform -translate-x-full transition-transform duration-300 ease-in-out">
             <div class="h-16 flex items-center justify-between px-6 border-b border-slate-800">
                 <div class="flex items-center space-x-2">
-                    <span class="font-display font-bold text-xl tracking-tight text-white">Launder</span>
+                    <span class="font-display font-bold text-xl tracking-tight text-white">Laundry</span>
                     <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Admin</span>
                 </div>
                 <button type="button" id="mobile-menu-close" aria-label="Close mobile navigation" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">

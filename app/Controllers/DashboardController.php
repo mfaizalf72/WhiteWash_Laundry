@@ -30,7 +30,7 @@ class DashboardController {
         $branches   = Branch::allActive();
 
         Router::view('admin/dashboard', [
-            'title'            => 'Dashboard - Launder',
+            'title'            => 'Dashboard - Laundry',
             'range'            => $range,
             'kpis'             => $kpis,
             'statusSum'        => $statusSum,
