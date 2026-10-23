@@ -63,7 +63,6 @@ class Router {
         }
     }
 
-    // We added a 3rd parameter: $layout, which defaults to 'app'
     public static function view(string $view, array $data = [], string $layout = 'app'): void {
         extract($data);
         $content = __DIR__ . "/../../views/pages/{$view}.php";
@@ -84,6 +83,9 @@ class Router {
     }
 
     public static function redirect(string $path): void {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
         header("Location: " . (function_exists('url') ? url($path) : ('/laundry-lms' . $path)));
         exit;
     }
