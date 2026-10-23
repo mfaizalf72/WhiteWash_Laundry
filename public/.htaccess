@@ -5,10 +5,7 @@
 
     RewriteEngine On
 
-    # Explicitly define the base path to prevent XAMPP subfolder confusion
-    RewriteBase /laundry-lms/public/
-
-    # Handle Authorization Headers for APIs (Crucial for later modules)
+    # Handle Authorization Headers for APIs
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 

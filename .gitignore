@@ -20,3 +20,6 @@ Thumbs.db
 
 # Specification files
 Laundry_LMS_Master_Requirements*
+
+# Archive / Deployment packages
+*.zip

@@ -5,7 +5,13 @@
 
     RewriteEngine On
 
-    # Prevent infinite loops by checking if we are already in the public directory
-    RewriteCond %{REQUEST_URI} !^/laundry-lms/public/
-    RewriteRule ^(.*)$ public/$1 [L]
+    # Prevent infinite loops if already in public directory
+    RewriteCond %{REQUEST_URI} ^.*/public/ [NC]
+    RewriteRule ^ - [L]
+
+    # Rewrite /laundry-lms prefix if present
+    RewriteRule ^laundry-lms/(.*)$ public/$1 [L,QSA]
+
+    # Otherwise route directly to public
+    RewriteRule ^(.*)$ public/$1 [L,QSA]
 </IfModule>
