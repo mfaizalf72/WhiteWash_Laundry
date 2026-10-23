@@ -21,11 +21,11 @@ class RoleMiddleware implements MiddlewareInterface {
         if (!in_array($userRole, $allowedRoles, true)) {
             http_response_code(403);
             if ($userRole === 'customer') {
-                $redirectUrl = '/laundry-lms/customer/dashboard';
+                $redirectUrl = function_exists('url') ? url('/customer/dashboard') : '/customer/dashboard';
             } elseif ($userRole === 'staff') {
-                $redirectUrl = '/laundry-lms/staff/dashboard';
+                $redirectUrl = function_exists('url') ? url('/staff/dashboard') : '/staff/dashboard';
             } else {
-                $redirectUrl = '/laundry-lms/dashboard';
+                $redirectUrl = function_exists('url') ? url('/dashboard') : '/dashboard';
             }
             echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-w: 600px; margin: 0 auto;'>" .
                  "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .

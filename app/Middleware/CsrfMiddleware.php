@@ -10,10 +10,11 @@ class CsrfMiddleware implements MiddlewareInterface {
         $token = $_POST['_csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? null;
         if (!Csrf::verify($token)) {
             http_response_code(403);
+            $loginUrl = function_exists('url') ? url('/login') : '/login';
             echo "<div style='padding: 3rem; text-align: center; font-family: sans-serif; max-w: 600px; margin: 0 auto;'>" .
                  "<h1 style='color: #e11d48; font-size: 2rem;'>403 Forbidden</h1>" .
                  "<p style='color: #475569;'>CSRF verification failed. Request rejected.</p>" .
-                 "<p><a href='/laundry-lms/login' style='color: #2563eb; text-decoration: underline;'>Return to Login</a></p>" .
+                 "<p><a href='{$loginUrl}' style='color: #2563eb; text-decoration: underline;'>Return to Login</a></p>" .
                  "</div>";
             exit;
         }

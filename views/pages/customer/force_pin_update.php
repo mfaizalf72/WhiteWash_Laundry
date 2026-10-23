@@ -25,7 +25,7 @@ use Faizal\LaundryLms\Helpers\Security;
         <p class="pl-5 text-slate-500">Must be exactly 4 numeric digits. The default PIN (1234), sequential (4321), and repeated digits (0000) are blocked.</p>
     </div>
 
-    <form action="/laundry-lms/customer/force-pin-update" method="POST" id="forcePinForm" class="space-y-4">
+    <form action="<?= url('/customer/force-pin-update') ?>" method="POST" id="forcePinForm" class="space-y-4">
         <?= Csrf::field() ?>
 
         <div>

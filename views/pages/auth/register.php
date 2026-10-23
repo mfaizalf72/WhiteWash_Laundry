@@ -12,7 +12,7 @@
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
-        <form class="mt-8 space-y-5" action="/laundry-lms/register" method="POST">
+        <form class="mt-8 space-y-5" action="<?= url('/register') ?>" method="POST">
             <?= \Faizal\LaundryLms\Helpers\Csrf::field() ?>
             <div class="space-y-4">
                 <div>
@@ -46,7 +46,7 @@
         <div class="text-center pt-4 border-t border-slate-100">
             <p class="text-sm text-slate-500">
                 Already have an account? 
-                <a href="/laundry-lms/login" class="font-semibold text-indigo-600 hover:text-indigo-500">Sign in</a>
+                <a href="<?= url('/login') ?>" class="font-semibold text-indigo-600 hover:text-indigo-500">Sign in</a>
             </p>
         </div>
     </div>

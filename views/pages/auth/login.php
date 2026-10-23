@@ -89,7 +89,7 @@
             </div>
 
             <!-- Login Form -->
-            <form id="login-form" class="mt-6 space-y-5" action="/laundry-lms/login" method="POST">
+            <form id="login-form" class="mt-6 space-y-5" action="<?= url('/login') ?>" method="POST">
                 <?= \Faizal\LaundryLms\Helpers\Csrf::field() ?>
 
                 <!-- Mobile Field -->
@@ -148,7 +148,7 @@
             <div class="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
                 <span class="text-slate-500 dark:text-slate-400">
                     New customer?
-                    <a href="/laundry-lms/register" class="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors">Create an account</a>
+                    <a href="<?= url('/register') ?>" class="font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 transition-colors">Create an account</a>
                 </span>
                 <span class="inline-flex items-center gap-1.5 text-slate-400 dark:text-slate-500 text-xs">
                     <svg class="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">

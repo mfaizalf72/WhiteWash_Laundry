@@ -63,7 +63,7 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
             <div class="flex items-center justify-between h-16">
                 <!-- Logo & Brand -->
                 <div class="flex items-center space-x-3">
-                    <a href="/laundry-lms/customer/dashboard" class="flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg group">
+                    <a href="<?= url('/customer/dashboard') ?>" class="flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg group">
                         <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-md shadow-indigo-900/30 group-hover:from-indigo-600 group-hover:to-indigo-800 transition-all">
                             <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                                 <rect width="18" height="20" x="3" y="2" rx="3"></rect>
@@ -80,17 +80,17 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
 
                 <!-- Navigation Links (Desktop) -->
                 <nav aria-label="Customer Navigation" class="hidden lg:flex items-center space-x-2">
-                    <a href="/laundry-lms/customer/dashboard" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/dashboard') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/dashboard') ? 'aria-current="page"' : '' ?>>
+                    <a href="<?= url('/customer/dashboard') ?>" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/dashboard') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/dashboard') ? 'aria-current="page"' : '' ?>>
                         Dashboard
                     </a>
-                    <a href="/laundry-lms/customer/orders" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/orders') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/orders') ? 'aria-current="page"' : '' ?>>
+                    <a href="<?= url('/customer/orders') ?>" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/orders') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/orders') ? 'aria-current="page"' : '' ?>>
                         My Orders
                     </a>
-                    <a href="/laundry-lms/customer/orders/create" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm flex items-center gap-1.5 <?= $isActiveRoute('/customer/orders/create') ? 'bg-blue-700 ring-2 ring-blue-400 text-white font-semibold' : 'bg-blue-600 hover:bg-blue-700 text-white' ?>" <?= $isActiveRoute('/customer/orders/create') ? 'aria-current="page"' : '' ?>>
+                    <a href="<?= url('/customer/orders/create') ?>" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm flex items-center gap-1.5 <?= $isActiveRoute('/customer/orders/create') ? 'bg-blue-700 ring-2 ring-blue-400 text-white font-semibold' : 'bg-blue-600 hover:bg-blue-700 text-white' ?>" <?= $isActiveRoute('/customer/orders/create') ? 'aria-current="page"' : '' ?>>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         <span>Request Pickup</span>
                     </a>
-                    <a href="/laundry-lms/customer/notifications" class="relative px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 inline-flex items-center space-x-1.5 <?= $isActiveRoute('/customer/notifications') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/notifications') ? 'aria-current="page"' : '' ?>>
+                    <a href="<?= url('/customer/notifications') ?>" class="relative px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 inline-flex items-center space-x-1.5 <?= $isActiveRoute('/customer/notifications') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/notifications') ? 'aria-current="page"' : '' ?>>
                         <svg class="w-4 h-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                         </svg>
@@ -101,10 +101,10 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
                             </span>
                         <?php endif; ?>
                     </a>
-                    <a href="/laundry-lms/customer/profile" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/profile') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/profile') ? 'aria-current="page"' : '' ?>>
+                    <a href="<?= url('/customer/profile') ?>" class="px-3 py-2 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 <?= $isActiveRoute('/customer/profile') ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/profile') ? 'aria-current="page"' : '' ?>>
                         Profile
                     </a>
-                    <a href="/laundry-lms/logout" class="px-3 py-2 rounded-lg text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500">
+                    <a href="<?= url('/logout') ?>" class="px-3 py-2 rounded-lg text-sm font-medium text-rose-400 hover:text-rose-300 hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500">
                         Logout
                     </a>
                 </nav>
@@ -127,16 +127,16 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
         
         <!-- Navigation Links (Mobile/Tablet sub-bar) -->
         <nav aria-label="Customer Mobile Navigation" class="lg:hidden border-t border-slate-800 bg-slate-900/95 px-3 py-2 flex items-center overflow-x-auto space-x-1.5 text-xs">
-            <a href="/laundry-lms/customer/dashboard" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/dashboard') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/dashboard') ? 'aria-current="page"' : '' ?>>
+            <a href="<?= url('/customer/dashboard') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/dashboard') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/dashboard') ? 'aria-current="page"' : '' ?>>
                 Dashboard
             </a>
-            <a href="/laundry-lms/customer/orders" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/orders') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/orders') ? 'aria-current="page"' : '' ?>>
+            <a href="<?= url('/customer/orders') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/orders') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/orders') ? 'aria-current="page"' : '' ?>>
                 My Orders
             </a>
-            <a href="/laundry-lms/customer/orders/create" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/orders/create') ? 'bg-blue-600 text-white font-semibold shadow-sm' : 'bg-blue-600/90 text-white hover:bg-blue-600' ?>" <?= $isActiveRoute('/customer/orders/create') ? 'aria-current="page"' : '' ?>>
+            <a href="<?= url('/customer/orders/create') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/orders/create') ? 'bg-blue-600 text-white font-semibold shadow-sm' : 'bg-blue-600/90 text-white hover:bg-blue-600' ?>" <?= $isActiveRoute('/customer/orders/create') ? 'aria-current="page"' : '' ?>>
                 + Pickup Request
             </a>
-            <a href="/laundry-lms/customer/notifications" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors inline-flex items-center space-x-1 <?= $isActiveRoute('/customer/notifications') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/notifications') ? 'aria-current="page"' : '' ?>>
+            <a href="<?= url('/customer/notifications') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors inline-flex items-center space-x-1 <?= $isActiveRoute('/customer/notifications') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/notifications') ? 'aria-current="page"' : '' ?>>
                 <span>Notifications</span>
                 <?php if ($unreadNavCount > 0): ?>
                     <span class="inline-flex items-center justify-center px-1.5 py-0.2 text-[10px] font-bold text-white bg-rose-600 rounded-full">
@@ -144,10 +144,10 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
                     </span>
                 <?php endif; ?>
             </a>
-            <a href="/laundry-lms/customer/profile" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/profile') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/profile') ? 'aria-current="page"' : '' ?>>
+            <a href="<?= url('/customer/profile') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors <?= $isActiveRoute('/customer/profile') ? 'bg-slate-800 text-white font-semibold shadow-sm' : 'text-slate-300 hover:text-white hover:bg-slate-800' ?>" <?= $isActiveRoute('/customer/profile') ? 'aria-current="page"' : '' ?>>
                 Profile
             </a>
-            <a href="/laundry-lms/logout" class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 whitespace-nowrap transition-colors">
+            <a href="<?= url('/logout') ?>" class="px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:text-rose-300 whitespace-nowrap transition-colors">
                 Logout
             </a>
         </nav>

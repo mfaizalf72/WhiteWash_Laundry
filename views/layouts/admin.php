@@ -34,70 +34,70 @@ $pageTitle = str_replace('Launder', 'Laundry', $pageTitle);
 $navItems = [
     [
         'label' => 'Dashboard',
-        'href'  => ($role === 'staff') ? '/laundry-lms/staff/dashboard' : '/laundry-lms/dashboard',
+        'href'  => ($role === 'staff') ? url('/staff/dashboard') : url('/dashboard'),
         'route' => ($role === 'staff') ? '/staff/dashboard' : '/dashboard',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>'
     ],
     [
         'label' => 'Orders',
-        'href'  => '/laundry-lms/orders',
+        'href'  => url('/orders'),
         'route' => '/orders',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>'
     ],
     [
         'label' => 'Customers',
-        'href'  => '/laundry-lms/customers',
+        'href'  => url('/customers'),
         'route' => '/customers',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>'
     ],
     [
         'label' => 'Laundry Items',
-        'href'  => '/laundry-lms/items',
+        'href'  => url('/items'),
         'route' => '/items',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>'
     ],
     [
         'label' => 'Work Types',
-        'href'  => '/laundry-lms/work-types',
+        'href'  => url('/work-types'),
         'route' => '/work-types',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>'
     ],
     [
         'label' => 'Pricing',
-        'href'  => '/laundry-lms/pricing',
+        'href'  => url('/pricing'),
         'route' => '/pricing',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-5 0a3 3 0 110 6h4a3 3 0 010 6H9m2-12v14"/>'
     ],
     [
         'label' => 'Reports',
-        'href'  => '/laundry-lms/reports',
+        'href'  => url('/reports'),
         'route' => '/reports',
         'roles' => ['admin', 'staff'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>'
     ],
     [
         'label' => 'Staff',
-        'href'  => '/laundry-lms/admin/staff',
+        'href'  => url('/admin/staff'),
         'route' => '/admin/staff',
         'roles' => ['admin'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>'
     ],
     [
         'label' => 'Branches',
-        'href'  => '/laundry-lms/admin/branches',
+        'href'  => url('/admin/branches'),
         'route' => '/admin/branches',
         'roles' => ['admin'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>'
     ],
     [
         'label' => 'Business Settings',
-        'href'  => '/laundry-lms/admin/settings',
+        'href'  => url('/admin/settings'),
         'route' => '/admin/settings',
         'roles' => ['admin'],
         'icon'  => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>'
@@ -187,7 +187,7 @@ $navItems = [
     <aside class="w-64 bg-slate-950 text-white flex-col hidden lg:flex shrink-0 border-r border-slate-800/80 shadow-xl">
         <!-- Brand Header -->
         <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
-            <a href="<?= ($role === 'staff') ? '/laundry-lms/staff/dashboard' : '/laundry-lms/dashboard' ?>" class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg">
+            <a href="<?= ($role === 'staff') ? url('/staff/dashboard') : url('/dashboard') ?>" class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg">
                 <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-md shadow-indigo-900/30 group-hover:from-indigo-600 group-hover:to-indigo-800 transition-all">
                     <svg class="w-5 h-5 text-white" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <rect width="18" height="20" x="3" y="2" rx="3"></rect>
@@ -233,7 +233,7 @@ $navItems = [
                         <div class="text-[10px] text-slate-400 uppercase tracking-wider"><?= Security::e($role) ?></div>
                     </div>
                 </div>
-                <a href="/laundry-lms/logout" aria-label="Sign Out" title="Sign Out" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500">
+                <a href="<?= url('/logout') ?>" aria-label="Sign Out" title="Sign Out" class="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-rose-500">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                     </svg>
@@ -249,7 +249,7 @@ $navItems = [
         <!-- Drawer Panel -->
         <div id="mobile-drawer" class="fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-slate-950 text-white shadow-2xl flex flex-col transform -translate-x-full transition-transform duration-300 ease-in-out border-r border-slate-800">
             <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800">
-                <a href="<?= ($role === 'staff') ? '/laundry-lms/staff/dashboard' : '/laundry-lms/dashboard' ?>" class="flex items-center gap-3">
+                <a href="<?= ($role === 'staff') ? url('/staff/dashboard') : url('/dashboard') ?>" class="flex items-center gap-3">
                     <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-xs">
                         <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect width="18" height="20" x="3" y="2" rx="3"></rect>
@@ -291,7 +291,7 @@ $navItems = [
                     </div>
                 </div>
                 <div class="mt-3 pt-3 border-t border-slate-800/80">
-                    <a href="/laundry-lms/logout" class="flex items-center gap-2 text-sm font-semibold text-rose-400 hover:text-rose-300 transition-colors">
+                    <a href="<?= url('/logout') ?>" class="flex items-center gap-2 text-sm font-semibold text-rose-400 hover:text-rose-300 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
@@ -341,7 +341,7 @@ $navItems = [
                     </div>
                     <span class="text-xs text-slate-600 dark:text-slate-300 font-medium hidden sm:inline"><?= Security::e($userName) ?></span>
                 </div>
-                <a href="/laundry-lms/logout" class="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-transparent hover:border-rose-100 dark:hover:border-rose-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg px-2.5 py-1.5">
+                <a href="<?= url('/logout') ?>" class="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 border border-transparent hover:border-rose-100 dark:hover:border-rose-900/50 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg px-2.5 py-1.5">
                     Logout
                 </a>
             </div>

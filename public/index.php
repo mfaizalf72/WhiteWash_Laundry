@@ -1,15 +1,20 @@
 <?php
 declare(strict_types=1);
 
+$isHttps = (!empty($_SERVER['HTTPS']) && strtolower((string)$_SERVER['HTTPS']) !== 'off')
+    || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower((string)$_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
+    || (!empty($_SERVER['SERVER_PORT']) && (int)$_SERVER['SERVER_PORT'] === 443);
+
 session_set_cookie_params([
     'lifetime' => 86400,
-    'path' => '/',
-    'domain' => $_SERVER['HTTP_HOST'] ?? 'localhost',
-    'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+    'path'     => '/',
+    'secure'   => $isHttps,
     'httponly' => true,
-    'samesite' => 'Strict'
+    'samesite' => 'Lax'
 ]);
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -19,8 +24,12 @@ if (!function_exists('url')) {
             || str_starts_with($_SERVER['HTTP_HOST'] ?? '', 'localhost:');
         $prefix = $isLocalhost ? '/laundry-lms' : '';
         $path = '/' . ltrim($path, '/');
-        if (!$isLocalhost && str_starts_with($path, '/laundry-lms/')) {
-            $path = substr($path, strlen('/laundry-lms'));
+        if (!$isLocalhost) {
+            if ($path === '/laundry-lms') {
+                $path = '/';
+            } elseif (str_starts_with($path, '/laundry-lms/')) {
+                $path = substr($path, strlen('/laundry-lms'));
+            }
         }
         return ($prefix . $path) ?: '/';
     }
@@ -33,13 +42,6 @@ if (!function_exists('asset')) {
         $prefix = $isLocalhost ? '/laundry-lms/public' : '/public';
         return $prefix . '/' . ltrim($path, '/');
     }
-}
-
-$isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1']) || str_starts_with($_SERVER['HTTP_HOST'] ?? '', 'localhost:');
-if (!$isLocalhost && str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms/')) {
-    $cleanUri = substr($_SERVER['REQUEST_URI'], strlen('/laundry-lms'));
-    header("Location: " . ($cleanUri ?: '/'), true, 301);
-    exit;
 }
 
 use Faizal\LaundryLms\Core\Router;
