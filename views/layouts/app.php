@@ -8,6 +8,7 @@ $pageTitle = str_replace('Launder', 'Laundry', $pageTitle);
 // Determine route for header action link
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
 $isRegisterPage = str_contains($currentPath, '/register');
+$baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/laundry-lms' : '';
 ?>
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -88,8 +89,8 @@ $isRegisterPage = str_contains($currentPath, '/register');
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     
-    <!-- Compiled Tailwind (Absolute path for XAMPP root resolution) -->
-    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
+    <!-- Compiled Tailwind (Adaptive path for local XAMPP and production domain) -->
+    <link href="<?= $baseUri ?>/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans">
     
@@ -99,7 +100,7 @@ $isRegisterPage = str_contains($currentPath, '/register');
             <div class="flex justify-between h-16 items-center">
                 <a href="/laundry-lms/" class="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg group">
                     <div class="w-9 h-9 bg-slate-900 dark:bg-slate-800 border dark:border-slate-700 rounded-xl flex items-center justify-center shadow-xs group-hover:bg-slate-800 dark:group-hover:bg-slate-700 transition-colors">
-                        <svg class="w-5 h-5 text-indigo-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <svg class="w-5 h-5 text-indigo-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect width="18" height="20" x="3" y="2" rx="3"></rect>
                             <circle cx="12" cy="13" r="5"></circle>
                             <path d="M12 10a3 3 0 0 0-3 3"></path>
@@ -146,6 +147,6 @@ $isRegisterPage = str_contains($currentPath, '/register');
         <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">&copy; <?= date('Y') ?> Laundry LMS. Professional garment care management.</p>
     </footer>
 
-    <script src="/laundry-lms/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
+    <script src="<?= $baseUri ?>/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
 </body>
 </html>

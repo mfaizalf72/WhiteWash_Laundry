@@ -11,6 +11,7 @@ if (str_starts_with($currentUri, $baseAppPath)) {
     $currentUri = substr($currentUri, strlen($baseAppPath));
 }
 $currentUri = rtrim($currentUri, '/') ?: '/';
+$baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/laundry-lms' : '';
 
 $isActiveRoute = function(string $route) use ($currentUri): bool {
     if ($route === '/customer/dashboard') {
@@ -52,7 +53,7 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
         })();
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= $baseUri ?>/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col min-h-screen font-sans transition-colors">
 
@@ -166,6 +167,6 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
         <p>&copy; <?= date('Y') ?> Laundry LMS. Customer Self-Service Portal.</p>
     </footer>
 
-    <script src="/laundry-lms/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
+    <script src="<?= $baseUri ?>/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
 </body>
 </html>

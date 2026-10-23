@@ -7,6 +7,7 @@ if (str_starts_with($currentUri, $baseAppPath)) {
     $currentUri = substr($currentUri, strlen($baseAppPath));
 }
 $currentUri = rtrim($currentUri, '/') ?: '/';
+$baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/laundry-lms' : '';
 
 $isActiveRoute = function(string $route) use ($currentUri): bool {
     if ($route === '/dashboard') {
@@ -178,7 +179,7 @@ $navItems = [
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= $baseUri ?>/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex h-full overflow-hidden font-sans antialiased">
 
@@ -188,7 +189,7 @@ $navItems = [
         <div class="h-16 flex items-center justify-between px-5 border-b border-slate-800/80">
             <a href="<?= ($role === 'staff') ? '/laundry-lms/staff/dashboard' : '/laundry-lms/dashboard' ?>" class="flex items-center gap-3 group focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg">
                 <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-md shadow-indigo-900/30 group-hover:from-indigo-600 group-hover:to-indigo-800 transition-all">
-                    <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <svg class="w-5 h-5 text-white" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <rect width="18" height="20" x="3" y="2" rx="3"></rect>
                         <circle cx="12" cy="13" r="5"></circle>
                         <path d="M12 10a3 3 0 0 0-3 3"></path>
