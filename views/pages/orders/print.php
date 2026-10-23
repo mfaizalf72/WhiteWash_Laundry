@@ -52,7 +52,7 @@ $rejData  = $metadata['rejection'] ?? [];
 $inspData = $metadata['inspection'] ?? [];
 
 $branchName  = !empty($order['branch_name']) ? $order['branch_name'] : null;
-$shopName    = !empty($settings['business_name']) ? $settings['business_name'] : 'Launder LMS';
+$shopName    = !empty($settings['business_name']) ? $settings['business_name'] : 'Laundry LMS';
 $shopSubName = '';
 if ($branchName && $branchName !== $shopName) {
     $shopSubName = $branchName . (!empty($order['branch_code']) ? ' (' . $order['branch_code'] . ')' : '');

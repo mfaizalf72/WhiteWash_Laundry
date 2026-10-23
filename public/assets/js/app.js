@@ -17,6 +17,8 @@
     ready(() => {
         initMobileDrawer();
         initFlashDismissal();
+        initTheme();
+        updateToggleIcons();
     });
 
     /**
@@ -202,6 +204,72 @@
             }
         });
     }
+
+    /**
+     * Theme Management (Dark / Light Mode)
+     */
+     function initTheme() {
+         window.addEventListener("storage", (e) => {
+             if (e.key === "lms_theme") {
+                 applyTheme(e.newValue);
+             }
+         });
+
+         document.addEventListener("click", (e) => {
+             const toggle = e.target.closest("[data-theme-toggle]");
+             if (toggle) {
+                 if (toggle._lastToggle && (Date.now() - toggle._lastToggle < 300)) {
+                     return;
+                 }
+                 toggle._lastToggle = Date.now();
+                 window.toggleTheme(e);
+             }
+         });
+     }
+
+     function applyTheme(theme) {
+         if (theme === "dark") {
+             document.documentElement.classList.add("dark");
+         } else {
+             document.documentElement.classList.remove("dark");
+         }
+         updateToggleIcons();
+     }
+
+     function setTheme(theme) {
+         try {
+             localStorage.setItem("lms_theme", theme);
+         } catch (e) {}
+         applyTheme(theme);
+     }
+
+     function updateToggleIcons() {
+         const isDark = document.documentElement.classList.contains("dark");
+         const toggles = document.querySelectorAll("[data-theme-toggle]");
+         toggles.forEach(btn => {
+             const moonIcon = btn.querySelector("[data-theme-icon-moon]");
+             const sunIcon = btn.querySelector("[data-theme-icon-sun]");
+             if (moonIcon && sunIcon) {
+                 if (isDark) {
+                     moonIcon.classList.add("hidden");
+                     sunIcon.classList.remove("hidden");
+                     btn.setAttribute("aria-label", "Switch to light mode");
+                     btn.setAttribute("title", "Switch to light mode");
+                 } else {
+                     moonIcon.classList.remove("hidden");
+                     sunIcon.classList.add("hidden");
+                     btn.setAttribute("aria-label", "Switch to dark mode");
+                     btn.setAttribute("title", "Switch to dark mode");
+                 }
+             }
+         });
+     }
+
+     window.toggleTheme = function(e) {
+         if (e && e.stopPropagation) e.stopPropagation();
+         const currentTheme = document.documentElement.classList.contains("dark") ? "dark" : "light";
+         setTheme(currentTheme === "dark" ? "light" : "dark");
+     };
 
     /**
      * Global Helper for Custom Date Toggles

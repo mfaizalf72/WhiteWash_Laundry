@@ -15,6 +15,7 @@ use Faizal\LaundryLms\Models\Refund;
 use Faizal\LaundryLms\Models\OrderItem;
 use Faizal\LaundryLms\Models\Branch;
 use Faizal\LaundryLms\Models\User;
+use Faizal\LaundryLms\Models\Staff;
 use Faizal\LaundryLms\Helpers\OrderMetadata;
 use Faizal\LaundryLms\Services\Payment\PaymentGatewayFactory;
 use Faizal\LaundryLms\Services\Pdf\InvoicePdfService;
@@ -59,6 +60,7 @@ class OrderController {
         $pickupToday   = !empty($_GET['pickup_today']);
         $deliveryToday = !empty($_GET['delivery_today']);
         $paymentDue    = !empty($_GET['payment_due']);
+        $unassigned    = !empty($_GET['unassigned']);
         $page          = max(1, (int)($_GET['page'] ?? 1));
 
         $filters = [
@@ -66,7 +68,8 @@ class OrderController {
             'search'         => $search,
             'pickup_today'   => $pickupToday,
             'delivery_today' => $deliveryToday,
-            'payment_due'    => $paymentDue
+            'payment_due'    => $paymentDue,
+            'unassigned'     => $unassigned
         ];
 
         $role = (string)($_SESSION['user_role'] ?? '');
@@ -89,9 +92,10 @@ class OrderController {
         $paginatedData = Order::allPaginated($filters, $page, 20);
         $branches      = Branch::allActive();
         $layout        = ($role === 'staff') ? 'staff' : 'admin';
+        $staffList     = ($role === 'admin') ? Staff::allActive() : [];
 
         Router::view('admin/orders/index', [
-            'title'            => 'Orders Directory - Launder',
+            'title'            => 'Orders Directory - Laundry',
             'orders'           => $paginatedData['orders'],
             'totalOrders'      => $paginatedData['total_orders'],
             'page'             => $paginatedData['page'],
@@ -101,9 +105,11 @@ class OrderController {
             'pickupToday'      => $pickupToday,
             'deliveryToday'    => $deliveryToday,
             'paymentDue'       => $paymentDue,
+            'unassigned'       => $unassigned,
             'branches'         => $branches,
             'selectedBranchId' => $selectedBranchId,
-            'isStaff'          => ($role === 'staff')
+            'isStaff'          => ($role === 'staff'),
+            'staffList'        => $staffList
         ], $layout);
     }
 
@@ -356,9 +362,10 @@ class OrderController {
         $pricings      = Pricing::all();
         $settings      = Settings::get();
         $layout        = (($_SESSION['user_role'] ?? '') === 'staff') ? 'staff' : 'admin';
+        $staffList     = ($layout === 'admin') ? Staff::allActive((int)($order['branch_id'] ?? 0)) : [];
 
         Router::view('admin/orders/show', [
-            'title'         => 'Order ' . $order['job_id'] . ' - Launder',
+            'title'         => 'Order ' . $order['job_id'] . ' - Laundry',
             'order'         => $order,
             'orderItems'    => $orderItems,
             'history'       => $history,
@@ -370,7 +377,8 @@ class OrderController {
             'items'         => $items,
             'workTypes'     => $workTypes,
             'pricings'      => $pricings,
-            'settings'      => $settings
+            'settings'      => $settings,
+            'staffList'     => $staffList
         ], $layout);
     }
 
@@ -441,8 +449,62 @@ class OrderController {
         }
 
         $redirect = trim($_POST['redirect_to'] ?? '/staff/dashboard');
+        if (str_starts_with($redirect, '/laundry-lms/')) {
+            $redirect = substr($redirect, strlen('/laundry-lms'));
+        }
         if (!str_starts_with($redirect, '/')) {
             $redirect = '/staff/dashboard';
+        }
+        Router::redirect($redirect);
+    }
+
+    public function assignStaff(): void {
+        $userRole = (string)($_SESSION['user_role'] ?? '');
+        $userId   = (int)($_SESSION['user_id'] ?? 0);
+
+        if ($userRole !== 'admin') {
+            http_response_code(403);
+            $_SESSION['error'] = "Unauthorized: Only administrators may assign or reassign staff to orders.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        $orderId = (int)($_POST['order_id'] ?? 0);
+        if ($orderId <= 0) {
+            $_SESSION['error'] = "Invalid order specified for assignment.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        $order = Order::find($orderId);
+        if (!$order) {
+            $_SESSION['error'] = "Order not found.";
+            Router::redirect('/orders');
+            return;
+        }
+
+        $rawStaffId  = $_POST['staff_id'] ?? '';
+        $staffUserId = ($rawStaffId !== '' && $rawStaffId !== null && (int)$rawStaffId > 0) ? (int)$rawStaffId : null;
+
+        try {
+            Order::assignStaff($orderId, $staffUserId, $userId);
+            if ($staffUserId !== null) {
+                $staff = Staff::find($staffUserId);
+                $staffName = $staff ? $staff['name'] : 'Staff';
+                $_SESSION['success'] = "Order #{$order['job_id']} assigned to {$staffName} successfully.";
+            } else {
+                $_SESSION['success'] = "Order #{$order['job_id']} is now unassigned.";
+            }
+        } catch (\Throwable $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+
+        $redirect = trim($_POST['redirect_to'] ?? ('/orders/show?id=' . $orderId));
+        if (str_starts_with($redirect, '/laundry-lms/')) {
+            $redirect = substr($redirect, strlen('/laundry-lms'));
+        }
+        if (!str_starts_with($redirect, '/')) {
+            $redirect = '/orders/show?id=' . $orderId;
         }
         Router::redirect($redirect);
     }

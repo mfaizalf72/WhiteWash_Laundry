@@ -80,8 +80,8 @@ class NotificationService {
     public static function notifyOrderCreated(int $orderId, int $customerId, string $orderNumber): void {
         try {
             $idempotencyKey = "in_app_order_{$orderId}_created";
-            $title   = "Order Received";
-            $message = "Your order {$orderNumber} has been received and scheduled for pickup.";
+            $title   = "Pickup Request Submitted";
+            $message = "Your pickup request for order {$orderNumber} has been submitted and scheduled for pickup.";
 
             self::dispatch(
                 $customerId,

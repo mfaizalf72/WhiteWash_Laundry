@@ -1282,6 +1282,10 @@ class Order {
             $params['branch_id'] = (int)$filters['branch_id'];
         }
 
+        if (!empty($filters['unassigned'])) {
+            $conditions[] = "o.staff_id IS NULL AND o.status != 'cancelled'";
+        }
+
         $whereClause = implode(" AND ", $conditions);
 
         // Total count query
@@ -1322,7 +1326,7 @@ class Order {
 
         try {
             // Lock order row
-            $stmt = $db->prepare("SELECT id, branch_id, staff_id, status FROM orders WHERE id = :id FOR UPDATE");
+            $stmt = $db->prepare("SELECT id, branch_id, staff_id, status, special_instructions FROM orders WHERE id = :id FOR UPDATE");
             $stmt->execute(['id' => $orderId]);
             $order = $stmt->fetch();
 
@@ -1350,8 +1354,100 @@ class Order {
                 throw new \DomainException("Order #{$orderId} is already assigned to a staff member.");
             }
 
-            $updateStmt = $db->prepare("UPDATE orders SET staff_id = :staff_id, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND staff_id IS NULL");
-            $updateStmt->execute(['staff_id' => $staffUserId, 'id' => $orderId]);
+            $staffName = $staff ? $staff['name'] : 'Staff Member';
+
+            // Record assignment in metadata
+            $extracted = OrderMetadata::extract($order['special_instructions'] ?? '');
+            $meta = $extracted['metadata'];
+            $assignments = $meta['assignments'] ?? [];
+            $assignments[] = [
+                'type'        => 'claimed',
+                'staff_id'    => $staffUserId,
+                'staff_name'  => $staffName,
+                'assigned_by' => $staffUserId,
+                'timestamp'   => date('Y-m-d H:i:s')
+            ];
+            $meta['assignments'] = $assignments;
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $updateStmt = $db->prepare("UPDATE orders SET staff_id = :staff_id, special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND staff_id IS NULL");
+            $updateStmt->execute([
+                'staff_id' => $staffUserId,
+                'inst'     => $newInstructions,
+                'id'       => $orderId
+            ]);
+
+            $db->commit();
+            return true;
+        } catch (\Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    public static function assignStaff(int $orderId, ?int $staffUserId, int $assignedByUserId): bool {
+        $db = Database::getConnection();
+        $db->beginTransaction();
+
+        try {
+            $stmt = $db->prepare("SELECT id, job_id, branch_id, staff_id, status, special_instructions FROM orders WHERE id = :id FOR UPDATE");
+            $stmt->execute(['id' => $orderId]);
+            $order = $stmt->fetch();
+
+            if (!$order) {
+                $db->rollBack();
+                throw new \InvalidArgumentException("Order #{$orderId} not found.");
+            }
+
+            if ($order['status'] === 'cancelled') {
+                $db->rollBack();
+                throw new \DomainException("Cannot assign staff to a cancelled order.");
+            }
+
+            $staffName = 'Unassigned';
+            if ($staffUserId !== null && $staffUserId > 0) {
+                $staff = Staff::find($staffUserId);
+                if (!$staff || empty($staff['is_active'])) {
+                    $db->rollBack();
+                    throw new \InvalidArgumentException("Selected staff member is invalid or inactive.");
+                }
+                $staffName = $staff['name'];
+            } else {
+                $staffUserId = null;
+            }
+
+            // Record assignment in metadata
+            $extracted = OrderMetadata::extract($order['special_instructions'] ?? '');
+            $meta = $extracted['metadata'];
+            $assignments = $meta['assignments'] ?? [];
+            $assignments[] = [
+                'type'        => ($staffUserId !== null) ? 'assigned' : 'unassigned',
+                'staff_id'    => $staffUserId,
+                'staff_name'  => $staffName,
+                'assigned_by' => $assignedByUserId,
+                'timestamp'   => date('Y-m-d H:i:s')
+            ];
+            $meta['assignments'] = $assignments;
+            $newInstructions = OrderMetadata::compose($extracted['customer_note'], $meta);
+
+            $updateStmt = $db->prepare("UPDATE orders SET staff_id = :staff_id, special_instructions = :inst, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $updateStmt->bindValue(':staff_id', $staffUserId, $staffUserId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $updateStmt->bindValue(':inst', $newInstructions, PDO::PARAM_STR);
+            $updateStmt->bindValue(':id', $orderId, PDO::PARAM_INT);
+            $updateStmt->execute();
+
+            if ($staffUserId !== null) {
+                NotificationService::dispatch(
+                    $staffUserId,
+                    $orderId,
+                    'order_assigned',
+                    'Order Assigned to You',
+                    "You have been assigned to order #{$order['job_id']}.",
+                    'order_assign_' . $orderId . '_' . $staffUserId . '_' . time()
+                );
+            }
 
             $db->commit();
             return true;

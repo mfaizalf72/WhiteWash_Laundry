@@ -117,8 +117,12 @@ $customerMobile  = trim((string)($customer['mobile'] ?? ''));
                 <label for="branch_id" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Select Branch <span class="text-rose-500">*</span></label>
                 <select id="branch_id" name="branch_id" required class="w-full px-3.5 py-2.5 border border-slate-200 bg-slate-50/50 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all shadow-xs">
                     <option value="">-- Choose a branch near you --</option>
-                    <?php foreach ($branches as $branch): ?>
-                        <option value="<?= (int)$branch['id'] ?>">
+                    <?php
+                    $defaultBranchId = \Faizal\LaundryLms\Models\Branch::getDefaultId();
+                    foreach ($branches as $branch):
+                        $isSelected = ((int)$branch['id'] === (int)$defaultBranchId);
+                    ?>
+                        <option value="<?= (int)$branch['id'] ?>" <?= $isSelected ? 'selected' : '' ?>>
                             <?= htmlspecialchars($branch['name']) ?> (<?= htmlspecialchars($branch['code']) ?>)<?= !empty($branch['address']) ? ' — ' . htmlspecialchars($branch['address']) : '' ?>
                         </option>
                     <?php endforeach; ?>
@@ -139,16 +143,36 @@ $customerMobile  = trim((string)($customer['mobile'] ?? ''));
             
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                    <label for="pickup_date" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Pickup Date <span class="text-rose-500">*</span></label>
-                    <input type="date" id="pickup_date" name="pickup_date" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" required
-                           class="w-full px-3.5 py-2.5 border border-slate-200 bg-slate-50/50 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all shadow-xs">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="pickup_date_display" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Pickup Date <span class="text-rose-500">*</span></label>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">DD/MM/YYYY</span>
+                    </div>
+                    <div class="relative flex items-center">
+                        <input type="text" id="pickup_date_display" placeholder="DD/MM/YYYY" maxlength="10" value="<?= date('d/m/Y') ?>" required
+                               class="w-full pl-3.5 pr-10 py-2.5 border border-slate-200 bg-slate-50/50 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all shadow-xs"
+                               autocomplete="off">
+                        <button type="button" id="pickup_calendar_btn" aria-label="Open pickup date calendar" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-blue-600 transition-colors focus:outline-none cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <input type="date" id="pickup_date" name="pickup_date" value="<?= date('Y-m-d') ?>" min="<?= date('Y-m-d') ?>" required style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;" tabindex="-1" aria-hidden="true">
+                    </div>
                     <p class="text-[11px] text-slate-500 mt-1">Our driver will arrive to collect garments on this day.</p>
                 </div>
 
                 <div>
-                    <label for="delivery_date" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">Target Delivery Date <span class="text-slate-400 font-normal normal-case">(Optional)</span></label>
-                    <input type="date" id="delivery_date" name="delivery_date" min="<?= date('Y-m-d') ?>"
-                           class="w-full px-3.5 py-2.5 border border-slate-200 bg-slate-50/50 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all shadow-xs">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="delivery_date_display" class="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Target Delivery Date <span class="text-slate-400 font-normal normal-case">(Optional)</span></label>
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">DD/MM/YYYY</span>
+                    </div>
+                    <div class="relative flex items-center">
+                        <input type="text" id="delivery_date_display" placeholder="DD/MM/YYYY" maxlength="10"
+                               class="w-full pl-3.5 pr-10 py-2.5 border border-slate-200 bg-slate-50/50 rounded-xl text-sm font-medium text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none transition-all shadow-xs"
+                               autocomplete="off">
+                        <button type="button" id="delivery_calendar_btn" aria-label="Open delivery date calendar" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-blue-600 transition-colors focus:outline-none cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <input type="date" id="delivery_date" name="delivery_date" min="<?= date('Y-m-d') ?>" style="position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none;" tabindex="-1" aria-hidden="true">
+                    </div>
                     <p class="text-[11px] text-slate-500 mt-1">Standard turnaround is typically 24–48 hours after pickup.</p>
                 </div>
             </div>
@@ -256,6 +280,69 @@ const settingsConfig   = {
 
 let custRowIndex = 0;
 
+function onCustItemChange(itemSelect) {
+    const row = itemSelect.closest('.cust-item-row');
+    if (!row) return;
+    updateServiceOptionsForRow(row);
+    calculateCustTotals();
+}
+
+function updateServiceOptionsForRow(row, preselectedWtId = null) {
+    const itemSel = row.querySelector('.cust-item-sel');
+    const wtSel   = row.querySelector('.cust-wt-sel');
+    if (!itemSel || !wtSel) return;
+
+    const itemId = parseInt(itemSel.value) || 0;
+    const currentWtId = (preselectedWtId !== null && preselectedWtId !== undefined && preselectedWtId !== '')
+        ? parseInt(preselectedWtId)
+        : (parseInt(wtSel.value) || 0);
+
+    const itemPricings = pricingMatrix.filter(p => parseInt(p.item_id) === itemId);
+    const pricedWtIds  = new Set(itemPricings.map(p => parseInt(p.work_type_id)));
+
+    let html = '';
+
+    if (itemId > 0) {
+        if (itemPricings.length > 0) {
+            html += '<optgroup label="Available Services">';
+            itemPricings.forEach(p => {
+                const wt = workTypesCatalog.find(w => parseInt(w.id) === parseInt(p.work_type_id));
+                const name = wt ? wt.name : `Service #${p.work_type_id}`;
+                const unit = p.pricing_type === 'per_kg' ? 'kg' : 'pc';
+                const price = parseFloat(p.price).toFixed(2);
+                html += `<option value="${p.work_type_id}">${escapeHtml(name)} (₹${price} / ${unit})</option>`;
+            });
+            html += '</optgroup>';
+        } else {
+            html += '<option value="">-- No services available for this item --</option>';
+        }
+
+        const otherWts = workTypesCatalog.filter(w => !pricedWtIds.has(parseInt(w.id)));
+        if (otherWts.length > 0) {
+            html += '<optgroup label="Other Services (Unavailable for this item)">';
+            otherWts.forEach(w => {
+                html += `<option value="${w.id}">${escapeHtml(w.name)} (Unavailable)</option>`;
+            });
+            html += '</optgroup>';
+        }
+    } else {
+        html += '<option value="">-- Select Service --</option>';
+        workTypesCatalog.forEach(wt => {
+            html += `<option value="${wt.id}">${escapeHtml(wt.name)}</option>`;
+        });
+    }
+
+    wtSel.innerHTML = html;
+
+    if (currentWtId > 0 && Array.from(wtSel.options).some(o => parseInt(o.value) === currentWtId)) {
+        wtSel.value = currentWtId;
+    } else if (itemPricings.length > 0) {
+        wtSel.value = itemPricings[0].work_type_id;
+    } else {
+        wtSel.value = '';
+    }
+}
+
 function addCustomerItemRow(defaultItem = null, defaultWorkType = null, defaultQty = 1) {
     const container = document.getElementById('custItemsContainer');
     const idx = custRowIndex++;
@@ -264,12 +351,6 @@ function addCustomerItemRow(defaultItem = null, defaultWorkType = null, defaultQ
     itemsCatalog.forEach(it => {
         const sel = defaultItem && parseInt(defaultItem) === parseInt(it.id) ? 'selected' : '';
         itemOptions += `<option value="${it.id}" ${sel}>${escapeHtml(it.name)}</option>`;
-    });
-
-    let wtOptions = '<option value="">-- Select Service --</option>';
-    workTypesCatalog.forEach(wt => {
-        const sel = defaultWorkType && parseInt(defaultWorkType) === parseInt(wt.id) ? 'selected' : '';
-        wtOptions += `<option value="${wt.id}" ${sel}>${escapeHtml(wt.name)}</option>`;
     });
 
     const rowHtml = `
@@ -288,14 +369,14 @@ function addCustomerItemRow(defaultItem = null, defaultWorkType = null, defaultQ
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1.5">Garment / Item <span class="text-rose-500">*</span></label>
-                <select name="items[${idx}][item_id]" required onchange="calculateCustTotals()" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none cust-item-sel shadow-xs transition-all">
+                <select name="items[${idx}][item_id]" required onchange="onCustItemChange(this)" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none cust-item-sel shadow-xs transition-all">
                     ${itemOptions}
                 </select>
             </div>
             <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1.5">Service Treatment <span class="text-rose-500">*</span></label>
                 <select name="items[${idx}][work_type_id]" required onchange="calculateCustTotals()" class="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 outline-none cust-wt-sel shadow-xs transition-all">
-                    ${wtOptions}
+                    <option value="">-- Select Service --</option>
                 </select>
             </div>
             <div>
@@ -324,9 +405,12 @@ function addCustomerItemRow(defaultItem = null, defaultWorkType = null, defaultQ
     `;
 
     container.insertAdjacentHTML('beforeend', rowHtml);
+    const newRow = document.getElementById(`cust_row_${idx}`);
+    updateServiceOptionsForRow(newRow, defaultWorkType);
     updateCustRowNums();
     calculateCustTotals();
 }
+
 
 function removeCustRow(idx) {
     const rows = document.querySelectorAll('.cust-item-row');
@@ -538,9 +622,39 @@ function escapeHtml(text) {
     return String(text).replace(/[&<>"']/g, m => map[m]);
 }
 
-// Synchronize pickup and delivery dates
-const pickupDateInput   = document.getElementById('pickup_date');
-const deliveryDateInput = document.getElementById('delivery_date');
+// Synchronize pickup and delivery dates & DD/MM/YYYY display
+const pickupDateInput       = document.getElementById('pickup_date');
+const pickupDateDisplay     = document.getElementById('pickup_date_display');
+const pickupCalendarBtn     = document.getElementById('pickup_calendar_btn');
+
+const deliveryDateInput     = document.getElementById('delivery_date');
+const deliveryDateDisplay   = document.getElementById('delivery_date_display');
+const deliveryCalendarBtn   = document.getElementById('delivery_calendar_btn');
+
+function formatYmdToDmy(ymd) {
+    if (!ymd || typeof ymd !== 'string') return '';
+    const parts = ymd.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return ymd;
+}
+
+function parseDmyToYmd(dmy) {
+    if (!dmy || typeof dmy !== 'string') return '';
+    const match = dmy.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (!match) return '';
+    const d = match[1].padStart(2, '0');
+    const m = match[2].padStart(2, '0');
+    const y = match[3];
+    const dInt = parseInt(d, 10);
+    const mInt = parseInt(m, 10);
+    const yInt = parseInt(y, 10);
+    if (mInt < 1 || mInt > 12 || dInt < 1 || dInt > 31 || yInt < 2000 || yInt > 2100) {
+        return '';
+    }
+    return `${y}-${m}-${d}`;
+}
 
 function syncDates() {
     if (!pickupDateInput || !deliveryDateInput) return;
@@ -549,13 +663,83 @@ function syncDates() {
         deliveryDateInput.min = pVal;
         if (deliveryDateInput.value && deliveryDateInput.value < pVal) {
             deliveryDateInput.value = '';
+            if (deliveryDateDisplay) deliveryDateDisplay.value = '';
+        }
+        if (pickupDateDisplay) {
+            pickupDateDisplay.value = formatYmdToDmy(pVal);
         }
     }
+    if (deliveryDateDisplay && deliveryDateInput.value) {
+        deliveryDateDisplay.value = formatYmdToDmy(deliveryDateInput.value);
+    }
+}
+
+function openCalendar(inputEl) {
+    if (!inputEl) return;
+    if (typeof inputEl.showPicker === 'function') {
+        try {
+            inputEl.showPicker();
+            return;
+        } catch (e) {}
+    }
+    inputEl.focus();
+}
+
+if (pickupCalendarBtn && pickupDateInput) {
+    pickupCalendarBtn.addEventListener('click', () => openCalendar(pickupDateInput));
+}
+if (deliveryCalendarBtn && deliveryDateInput) {
+    deliveryCalendarBtn.addEventListener('click', () => openCalendar(deliveryDateInput));
+}
+
+if (pickupDateDisplay && pickupDateInput) {
+    pickupDateDisplay.addEventListener('input', () => {
+        let val = pickupDateDisplay.value.replace(/[^\d\/]/g, '');
+        if (!val.includes('/') && val.length > 2) {
+            if (val.length <= 4) {
+                val = val.slice(0, 2) + '/' + val.slice(2);
+            } else {
+                val = val.slice(0, 2) + '/' + val.slice(2, 4) + '/' + val.slice(4, 8);
+            }
+        }
+        pickupDateDisplay.value = val;
+        const ymd = parseDmyToYmd(val);
+        if (ymd) {
+            pickupDateInput.value = ymd;
+            syncDates();
+        }
+    });
+}
+
+if (deliveryDateDisplay && deliveryDateInput) {
+    deliveryDateDisplay.addEventListener('input', () => {
+        let val = deliveryDateDisplay.value.replace(/[^\d\/]/g, '');
+        if (!val.includes('/') && val.length > 2) {
+            if (val.length <= 4) {
+                val = val.slice(0, 2) + '/' + val.slice(2);
+            } else {
+                val = val.slice(0, 2) + '/' + val.slice(2, 4) + '/' + val.slice(4, 8);
+            }
+        }
+        deliveryDateDisplay.value = val;
+        const ymd = parseDmyToYmd(val);
+        if (ymd) {
+            deliveryDateInput.value = ymd;
+            syncDates();
+        } else if (val === '') {
+            deliveryDateInput.value = '';
+            syncDates();
+        }
+    });
 }
 
 if (pickupDateInput) {
     pickupDateInput.addEventListener('change', syncDates);
     pickupDateInput.addEventListener('input', syncDates);
+}
+if (deliveryDateInput) {
+    deliveryDateInput.addEventListener('change', syncDates);
+    deliveryDateInput.addEventListener('input', syncDates);
 }
 
 // Double submit prevention and validation check
@@ -564,6 +748,20 @@ if (orderForm) {
     orderForm.addEventListener('submit', function (e) {
         if (!orderForm.checkValidity()) {
             return;
+        }
+
+        // Ensure hidden date values are in sync before submission
+        if (pickupDateDisplay && (!pickupDateInput.value || pickupDateDisplay.value)) {
+            const ymd = parseDmyToYmd(pickupDateDisplay.value);
+            if (ymd) pickupDateInput.value = ymd;
+        }
+        if (deliveryDateDisplay) {
+            if (deliveryDateDisplay.value) {
+                const ymd = parseDmyToYmd(deliveryDateDisplay.value);
+                if (ymd) deliveryDateInput.value = ymd;
+            } else {
+                deliveryDateInput.value = '';
+            }
         }
 
         calculateCustTotals();

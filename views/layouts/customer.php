@@ -30,17 +30,31 @@ $isActiveRoute = function(string $route) use ($currentUri): bool {
     }
     return $currentUri === $route || str_starts_with($currentUri, $route . '/');
 };
+
+$pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laundry');
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= Security::e($title ?? 'Customer Portal - Launder') ?></title>
+    <title><?= Security::e($pageTitle) ?></title>
+    <script>
+        (function() {
+            try {
+                var theme = localStorage.getItem('lms_theme');
+                if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            } catch(e) {}
+        })();
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link href="/laundry-lms/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
-<body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen font-sans">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col min-h-screen font-sans transition-colors">
 
     <!-- Top Navigation Bar -->
     <header class="bg-slate-900 text-white border-b border-slate-800 shadow-md">
@@ -48,9 +62,18 @@ $isActiveRoute = function(string $route) use ($currentUri): bool {
             <div class="flex items-center justify-between h-16">
                 <!-- Logo & Brand -->
                 <div class="flex items-center space-x-3">
-                    <a href="/laundry-lms/customer/dashboard" class="flex items-center space-x-2 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg">
-                        <span class="font-display font-bold text-xl tracking-tight text-white">Launder</span>
-                        <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Customer</span>
+                    <a href="/laundry-lms/customer/dashboard" class="flex items-center space-x-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg group">
+                        <div class="w-9 h-9 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-xl flex items-center justify-center shadow-md shadow-indigo-900/30 group-hover:from-indigo-600 group-hover:to-indigo-800 transition-all">
+                            <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <rect width="18" height="20" x="3" y="2" rx="3"></rect>
+                                <circle cx="12" cy="13" r="5"></circle>
+                                <path d="M12 10a3 3 0 0 0-3 3"></path>
+                                <circle cx="7" cy="6" r="1" fill="currentColor"></circle>
+                                <circle cx="11" cy="6" r="1" fill="currentColor"></circle>
+                            </svg>
+                        </div>
+                        <span class="font-display font-bold text-xl tracking-tight text-white">Laundry</span>
+                        <span class="bg-blue-600 text-white text-xs font-semibold px-2 py-0.5 rounded-full shadow-2xs">Customer</span>
                     </a>
                 </div>
 
@@ -85,8 +108,16 @@ $isActiveRoute = function(string $route) use ($currentUri): bool {
                     </a>
                 </nav>
 
-                <!-- User Info Header -->
+                <!-- User Info Header & Theme Toggle -->
                 <div class="flex items-center space-x-3 text-sm">
+                    <button type="button" data-theme-toggle aria-label="Switch to dark mode" title="Switch to dark mode" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                        <svg data-theme-icon-moon class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                        <svg data-theme-icon-sun class="w-4 h-4 hidden dark:block text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </button>
                     <span class="hidden sm:inline-block text-slate-400">Welcome,</span>
                     <span class="font-semibold text-white truncate max-w-[180px] sm:max-w-none"><?= Security::e($_SESSION['user_name'] ?? 'Customer') ?></span>
                 </div>
@@ -131,8 +162,8 @@ $isActiveRoute = function(string $route) use ($currentUri): bool {
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 mt-auto">
-        <p>&copy; <?= date('Y') ?> Launder Laundry LMS. Customer Self-Service Portal.</p>
+    <footer class="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 py-4 text-center text-xs text-slate-500 dark:text-slate-400 mt-auto transition-colors">
+        <p>&copy; <?= date('Y') ?> Laundry LMS. Customer Self-Service Portal.</p>
     </footer>
 
     <script src="/laundry-lms/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>

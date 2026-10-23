@@ -81,6 +81,112 @@ $paymentBadge = $getPaymentStatusBadge((string)($order['payment_status'] ?? 'unp
         </div>
     </div>
 
+    <?php if ($order['status'] !== 'cancelled'): ?>
+        <?php if (($_SESSION['user_role'] ?? '') === 'admin'): ?>
+            <!-- Prominent Admin Staff Assignment Card -->
+            <div id="staff-assignment-card" class="bg-white dark:bg-slate-900 border-2 <?= empty($order['staff_id']) ? 'border-amber-300 dark:border-amber-700 bg-amber-50/40 dark:bg-amber-950/20' : 'border-indigo-200 dark:border-slate-800' ?> rounded-2xl p-5 shadow-sm transition-colors">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5">
+                        <div class="p-2.5 <?= empty($order['staff_id']) ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-300' : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300' ?> rounded-xl shrink-0">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h3 class="text-base font-bold text-slate-900 dark:text-slate-100">Staff Assignment &amp; Delegation</h3>
+                                <?php if (empty($order['staff_id'])): ?>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-700">Unassigned</span>
+                                <?php else: ?>
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700">
+                                        <svg class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                        Assigned: <?= htmlspecialchars($order['staff_name']) ?>
+                                    </span>
+                                <?php endif; ?>
+                            </div>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                <?= empty($order['staff_id']) ? 'This order is currently unassigned. Please select a staff member to handle customer communication, pickup, and processing.' : 'Assignee is actively responsible for workflow transitions and physical processing.' ?>
+                            </p>
+                        </div>
+                    </div>
+                    <form action="/laundry-lms/orders/assign" method="POST" class="w-full md:w-auto flex flex-wrap items-center gap-2">
+                        <?= Csrf::field() ?>
+                        <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                        <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                        <div class="relative flex-1 md:flex-initial min-w-[200px]">
+                            <select name="staff_id" aria-label="Select staff member" class="w-full text-xs sm:text-sm rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-3 py-2 shadow-xs focus:ring-2 focus:ring-indigo-500 cursor-pointer font-medium">
+                                <option value="">-- Unassigned --</option>
+                                <?php foreach (($staffList ?? []) as $st): ?>
+                                    <option value="<?= (int)$st['id'] ?>" <?= ((int)($order['staff_id'] ?? 0) === (int)$st['id']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($st['name']) ?><?= !empty($st['branch_name']) ? ' (' . htmlspecialchars($st['branch_name']) . ')' : '' ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer whitespace-nowrap">
+                            <?= empty($order['staff_id']) ? 'Assign Staff' : 'Reassign Staff' ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+        <?php elseif (($_SESSION['user_role'] ?? '') === 'staff'): ?>
+            <?php if (empty($order['staff_id']) && !in_array($order['status'], ['completed', 'delivered'], true)): ?>
+                <!-- Prominent Staff Self-Claiming Alert Banner -->
+                <div class="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-5 shadow-sm">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="p-2.5 bg-amber-100 dark:bg-amber-900/60 rounded-xl text-amber-700 dark:text-amber-300 shrink-0">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-amber-900 dark:text-amber-200">Unassigned Order</h3>
+                                <p class="text-xs text-amber-700 dark:text-amber-300 mt-0.5">This order currently has no staff assigned. Claim this order to take responsibility for customer pickup, inspection, and processing.</p>
+                            </div>
+                        </div>
+                        <form action="/laundry-lms/orders/claim" method="POST" class="shrink-0 w-full sm:w-auto">
+                            <?= Csrf::field() ?>
+                            <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                            <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                            <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-semibold text-sm px-5 py-2.5 rounded-xl shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                <span>Claim This Order Now</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            <?php elseif ((int)($order['staff_id'] ?? 0) === (int)($_SESSION['user_id'] ?? 0)): ?>
+                <!-- Assigned to Current Staff Banner -->
+                <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-100 dark:bg-emerald-900/60 rounded-xl text-emerald-700 dark:text-emerald-300 shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-bold text-emerald-800 dark:text-emerald-200">✓ Assigned to You</span>
+                            <p class="text-xs text-emerald-600 dark:text-emerald-400">You are the designated staff handler for this order.</p>
+                        </div>
+                    </div>
+                </div>
+            <?php else: ?>
+                <!-- Assigned to Other Staff Banner -->
+                <div class="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xs flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-slate-100 dark:bg-slate-700 rounded-xl text-slate-600 dark:text-slate-300 shrink-0">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Handling Staff:</span>
+                            <span class="text-xs font-bold text-slate-800 dark:text-slate-200 ml-1"><?= htmlspecialchars($order['staff_name']) ?></span>
+                        </div>
+                    </div>
+                </div>
+            <?php endif; ?>
+        <?php endif; ?>
+    <?php endif; ?>
+
     <?php if ($order['status'] === 'cancelled'): 
         $canc = $metadata['cancellation'] ?? [];
         $rej  = $metadata['rejection'] ?? [];
@@ -232,22 +338,70 @@ $paymentBadge = $getPaymentStatusBadge((string)($order['payment_status'] ?? 'unp
                 </div>
                 <div>
                     <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Assigned Staff</span>
-                    <?php if (!empty($order['staff_name'])): ?>
-                        <span class="font-medium text-slate-800 block mt-0.5"><?= htmlspecialchars($order['staff_name']) ?></span>
-                    <?php else: ?>
-                        <div class="flex items-center justify-between mt-1">
-                            <span class="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Unassigned</span>
-                            <?php if (($_SESSION['user_role'] ?? '') === 'staff'): ?>
-                                <form action="/laundry-lms/orders/claim" method="POST" class="inline-block">
+                    <?php
+                    $isAdminRole = (($_SESSION['user_role'] ?? '') === 'admin');
+                    $isStaffRole = (($_SESSION['user_role'] ?? '') === 'staff');
+                    $isCurrentStaff = ($isStaffRole && !empty($order['staff_id']) && (int)$order['staff_id'] === (int)($_SESSION['user_id'] ?? 0));
+                    $isAssigned = !empty($order['staff_name']);
+                    ?>
+
+                    <?php if ($isAdminRole): ?>
+                        <div class="mt-1 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <?php if ($isAssigned): ?>
+                                    <span class="font-medium text-slate-800 dark:text-slate-100"><?= htmlspecialchars($order['staff_name']) ?></span>
+                                <?php else: ?>
+                                    <span class="text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">Unassigned</span>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($order['status'] !== 'cancelled'): ?>
+                                <form action="/laundry-lms/orders/assign" method="POST" class="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-2">
                                     <?= Csrf::field() ?>
                                     <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
                                     <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
-                                    <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500">
-                                        Claim Order
-                                    </button>
+                                    <div class="flex items-center gap-1.5">
+                                        <select name="staff_id" class="w-full text-xs rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 shadow-xs focus:border-blue-500 focus:ring-blue-500 py-1.5 px-2">
+                                            <option value="">-- Unassigned --</option>
+                                            <?php foreach (($staffList ?? []) as $st): ?>
+                                                <option value="<?= (int)$st['id'] ?>" <?= ((int)($order['staff_id'] ?? 0) === (int)$st['id']) ? 'selected' : '' ?>>
+                                                    <?= htmlspecialchars($st['name']) ?><?= !empty($st['branch_name']) ? ' (' . htmlspecialchars($st['branch_name']) . ')' : '' ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                        <button type="submit" class="shrink-0 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                                            <?= $isAssigned ? 'Reassign' : 'Assign' ?>
+                                        </button>
+                                    </div>
                                 </form>
                             <?php endif; ?>
                         </div>
+
+                    <?php else: /* Staff or Customer */ ?>
+                        <?php if ($isAssigned): ?>
+                            <?php if ($isCurrentStaff): ?>
+                                <div class="mt-1 inline-flex items-center gap-1.5 font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1 rounded-md text-xs">
+                                    <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                    <span>Assigned to You (<?= htmlspecialchars($order['staff_name']) ?>)</span>
+                                </div>
+                            <?php else: ?>
+                                <span class="font-medium text-slate-800 dark:text-slate-100 block mt-0.5"><?= htmlspecialchars($order['staff_name']) ?></span>
+                            <?php endif; ?>
+                        <?php else: ?>
+                            <div class="flex items-center justify-between mt-1">
+                                <span class="text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">Unassigned</span>
+                                <?php if ($isStaffRole && $order['status'] !== 'cancelled'): ?>
+                                    <form action="/laundry-lms/orders/claim" method="POST" class="inline-block">
+                                        <?= Csrf::field() ?>
+                                        <input type="hidden" name="order_id" value="<?= (int)$order['id'] ?>">
+                                        <input type="hidden" name="redirect_to" value="/orders/show?id=<?= (int)$order['id'] ?>">
+                                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer">
+                                            Claim Order
+                                        </button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
 
@@ -265,6 +419,23 @@ $paymentBadge = $getPaymentStatusBadge((string)($order['payment_status'] ?? 'unp
                                     </div>
                                     <div class="text-[11px] text-slate-500 italic">"<?= htmlspecialchars($rs['reason']) ?>"</div>
                                     <div class="text-[10px] text-slate-400"><?= date('M j, Y g:ia', strtotime($rs['rescheduled_at'])) ?> &bull; by <?= htmlspecialchars($rs['rescheduled_by_role']) ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
+                <?php if (!empty($metadata['assignments'])): ?>
+                    <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">Staff Assignment History</span>
+                        <div class="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                            <?php foreach (array_reverse($metadata['assignments']) as $asg): ?>
+                                <div class="bg-slate-50 dark:bg-slate-800/60 p-2 rounded-lg border border-slate-200/80 dark:border-slate-700 text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                                    <div>
+                                        <span class="font-semibold capitalize text-slate-900 dark:text-slate-100"><?= htmlspecialchars($asg['type'] ?? 'assigned') ?>:</span>
+                                        <span class="text-slate-600 dark:text-slate-400"><?= htmlspecialchars($asg['staff_name'] ?? 'Staff') ?></span>
+                                    </div>
+                                    <span class="text-[10px] text-slate-400 font-mono"><?= !empty($asg['timestamp']) ? date('M j, g:ia', strtotime($asg['timestamp'])) : '' ?></span>
                                 </div>
                             <?php endforeach; ?>
                         </div>

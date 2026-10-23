@@ -6,6 +6,7 @@ namespace Faizal\LaundryLms\Controllers;
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Models\Order;
 use Faizal\LaundryLms\Models\Customer;
+use Faizal\LaundryLms\Models\Branch;
 
 class StaffPortalController {
     public function dashboard(): void {
@@ -26,12 +27,29 @@ class StaffPortalController {
             $_SESSION['user_branch_id'] = $staffBranchId;
         }
 
-        $queues = Order::getStaffOperationalQueues($staffBranchId);
+        $branches = Branch::allActive();
+
+        $selectedBranchParam = $_GET['branch_id'] ?? null;
+        if ($selectedBranchParam === 'all' || $selectedBranchParam === '0') {
+            $selectedBranchId = null;
+        } elseif ($selectedBranchParam !== null && is_numeric($selectedBranchParam)) {
+            $selectedBranchId = (int)$selectedBranchParam;
+            if ($selectedBranchId > 0) {
+                $_SESSION['user_branch_id'] = $selectedBranchId;
+                $staffBranchId = $selectedBranchId;
+            }
+        } else {
+            $selectedBranchId = $staffBranchId > 0 ? $staffBranchId : null;
+        }
+
+        $queues = Order::getStaffOperationalQueues($selectedBranchId);
 
         Router::view('staff/dashboard', [
-            'title'         => 'Staff Operations Dashboard - Launder',
-            'queues'        => $queues,
-            'staffBranchId' => $staffBranchId
+            'title'            => 'Staff Operations Dashboard - Laundry',
+            'queues'           => $queues,
+            'staffBranchId'    => $staffBranchId,
+            'branches'         => $branches,
+            'selectedBranchId' => $selectedBranchId
         ], 'staff');
     }
 }

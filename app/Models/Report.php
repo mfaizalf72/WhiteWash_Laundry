@@ -290,9 +290,11 @@ class Report {
             $params['branch_id'] = $branchId;
         }
 
-        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, b.name AS branch_name, b.code AS branch_code
+        $sql = "SELECT o.*, c.name AS customer_name, c.mobile AS customer_mobile, s.name AS staff_name,
+                       b.name AS branch_name, b.code AS branch_code
                 FROM orders o
                 JOIN users c ON o.customer_id = c.id
+                LEFT JOIN users s ON o.staff_id = s.id
                 LEFT JOIN branches b ON o.branch_id = b.id
                 {$branchClause}
                 ORDER BY o.id DESC

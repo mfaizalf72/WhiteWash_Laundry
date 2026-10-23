@@ -35,6 +35,35 @@ class Staff {
     }
 
     /**
+     * Get all active staff accounts, optionally prioritizing or filtering by branch.
+     */
+    public static function allActive(?int $branchId = null): array {
+        $db = Database::getConnection();
+        if ($branchId !== null && $branchId > 0) {
+            $stmt = $db->prepare("SELECT u.id, u.role, u.branch_id, u.name, u.mobile, u.is_active,
+                                         b.name AS branch_name, b.code AS branch_code
+                                  FROM users u
+                                  LEFT JOIN branches b ON u.branch_id = b.id
+                                  WHERE u.role = 'staff' AND u.deleted_at IS NULL AND u.is_active = 1 AND u.branch_id = :branch_id
+                                  ORDER BY u.name ASC");
+            $stmt->execute(['branch_id' => $branchId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            if (!empty($rows)) {
+                return $rows;
+            }
+        }
+
+        // Return all active staff across branches (or fallback if branch has no staff)
+        $stmt = $db->query("SELECT u.id, u.role, u.branch_id, u.name, u.mobile, u.is_active,
+                                   b.name AS branch_name, b.code AS branch_code
+                            FROM users u
+                            LEFT JOIN branches b ON u.branch_id = b.id
+                            WHERE u.role = 'staff' AND u.deleted_at IS NULL AND u.is_active = 1
+                            ORDER BY u.name ASC");
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
      * Find a staff account by ID (strictly role = 'staff').
      */
     public static function find(int $id): ?array {

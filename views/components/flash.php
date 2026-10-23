@@ -3,38 +3,38 @@ use Faizal\LaundryLms\Helpers\Security;
 
 $flashConfig = [
     'success' => [
-        'bg' => 'bg-emerald-50',
-        'border' => 'border-emerald-200',
-        'text' => 'text-emerald-800',
-        'iconColor' => 'text-emerald-600',
-        'btnColor' => 'text-emerald-600 hover:text-emerald-900 hover:bg-emerald-100/70 focus:ring-emerald-500',
+        'bg' => 'bg-emerald-50 dark:bg-emerald-950/40',
+        'border' => 'border-emerald-200 dark:border-emerald-800/60',
+        'text' => 'text-emerald-800 dark:text-emerald-300',
+        'iconColor' => 'text-emerald-600 dark:text-emerald-400',
+        'btnColor' => 'text-emerald-600 dark:text-emerald-400 hover:text-emerald-900 dark:hover:text-emerald-200 hover:bg-emerald-100/70 dark:hover:bg-emerald-900/60 focus:ring-emerald-500',
         'role' => 'status',
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
     ],
     'error' => [
-        'bg' => 'bg-rose-50',
-        'border' => 'border-rose-200',
-        'text' => 'text-rose-800',
-        'iconColor' => 'text-rose-600',
-        'btnColor' => 'text-rose-600 hover:text-rose-900 hover:bg-rose-100/70 focus:ring-rose-500',
+        'bg' => 'bg-rose-50 dark:bg-rose-950/40',
+        'border' => 'border-rose-200 dark:border-rose-800/60',
+        'text' => 'text-rose-800 dark:text-rose-300',
+        'iconColor' => 'text-rose-600 dark:text-rose-400',
+        'btnColor' => 'text-rose-600 dark:text-rose-400 hover:text-rose-900 dark:hover:text-rose-200 hover:bg-rose-100/70 dark:hover:bg-rose-900/60 focus:ring-rose-500',
         'role' => 'alert',
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
     ],
     'warning' => [
-        'bg' => 'bg-amber-50',
-        'border' => 'border-amber-200',
-        'text' => 'text-amber-800',
-        'iconColor' => 'text-amber-600',
-        'btnColor' => 'text-amber-600 hover:text-amber-900 hover:bg-amber-100/70 focus:ring-amber-500',
+        'bg' => 'bg-amber-50 dark:bg-amber-950/40',
+        'border' => 'border-amber-200 dark:border-amber-800/60',
+        'text' => 'text-amber-800 dark:text-amber-300',
+        'iconColor' => 'text-amber-600 dark:text-amber-400',
+        'btnColor' => 'text-amber-600 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 hover:bg-amber-100/70 dark:hover:bg-amber-900/60 focus:ring-amber-500',
         'role' => 'alert',
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />'
     ],
     'info' => [
-        'bg' => 'bg-blue-50',
-        'border' => 'border-blue-200',
-        'text' => 'text-blue-800',
-        'iconColor' => 'text-blue-600',
-        'btnColor' => 'text-blue-600 hover:text-blue-900 hover:bg-blue-100/70 focus:ring-blue-500',
+        'bg' => 'bg-blue-50 dark:bg-blue-950/40',
+        'border' => 'border-blue-200 dark:border-blue-800/60',
+        'text' => 'text-blue-800 dark:text-blue-300',
+        'iconColor' => 'text-blue-600 dark:text-blue-400',
+        'btnColor' => 'text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200 hover:bg-blue-100/70 dark:hover:bg-blue-900/60 focus:ring-blue-500',
         'role' => 'status',
         'icon' => '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />'
     ]

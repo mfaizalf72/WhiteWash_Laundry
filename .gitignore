@@ -2,3 +2,21 @@
 /node_modules/
 .env
 
+# Scratch and test artifacts
+/scratch/
+/database/backups/
+*.sql.bak
+database/*backup*.sql
+
+# Logs and runtime files
+*.log
+*.tmp
+*.pdf
+*.txt.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Specification files
+Laundry_LMS_Master_Requirements*
