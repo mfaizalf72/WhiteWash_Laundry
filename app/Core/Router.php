@@ -84,7 +84,7 @@ class Router {
     }
 
     public static function redirect(string $path): void {
-        header("Location: /laundry-lms" . $path);
+        header("Location: " . (function_exists('url') ? url($path) : ('/laundry-lms' . $path)));
         exit;
     }
 

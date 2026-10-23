@@ -13,6 +13,35 @@ session_start();
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+if (!function_exists('url')) {
+    function url(string $path = ''): string {
+        $isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1']) 
+            || str_starts_with($_SERVER['HTTP_HOST'] ?? '', 'localhost:');
+        $prefix = $isLocalhost ? '/laundry-lms' : '';
+        $path = '/' . ltrim($path, '/');
+        if (!$isLocalhost && str_starts_with($path, '/laundry-lms/')) {
+            $path = substr($path, strlen('/laundry-lms'));
+        }
+        return ($prefix . $path) ?: '/';
+    }
+}
+
+if (!function_exists('asset')) {
+    function asset(string $path): string {
+        $isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1']) 
+            || str_starts_with($_SERVER['HTTP_HOST'] ?? '', 'localhost:');
+        $prefix = $isLocalhost ? '/laundry-lms/public' : '/public';
+        return $prefix . '/' . ltrim($path, '/');
+    }
+}
+
+$isLocalhost = in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1']) || str_starts_with($_SERVER['HTTP_HOST'] ?? '', 'localhost:');
+if (!$isLocalhost && str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms/')) {
+    $cleanUri = substr($_SERVER['REQUEST_URI'], strlen('/laundry-lms'));
+    header("Location: " . ($cleanUri ?: '/'), true, 301);
+    exit;
+}
+
 use Faizal\LaundryLms\Core\Router;
 use Faizal\LaundryLms\Middleware\AuthMiddleware;
 use Faizal\LaundryLms\Middleware\GuestMiddleware;

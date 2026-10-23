@@ -53,7 +53,7 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
         })();
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
-    <link href="<?= $baseUri ?>/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= asset('assets/css/app.css') ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col min-h-screen font-sans transition-colors">
 
@@ -167,6 +167,6 @@ $pageTitle = str_replace('Launder', 'Laundry', $title ?? 'Customer Portal - Laun
         <p>&copy; <?= date('Y') ?> Laundry LMS. Customer Self-Service Portal.</p>
     </footer>
 
-    <script src="<?= $baseUri ?>/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
+    <script src="<?= asset('assets/js/app.js') ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
 </body>
 </html>

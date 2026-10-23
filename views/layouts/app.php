@@ -90,7 +90,7 @@ $baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/la
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     
     <!-- Compiled Tailwind (Adaptive path for local XAMPP and production domain) -->
-    <link href="<?= $baseUri ?>/public/assets/css/app.css?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
+    <link href="<?= asset('assets/css/app.css') ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/css/app.css') ?>" rel="stylesheet">
 </head>
 <body class="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans">
     
@@ -98,7 +98,7 @@ $baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/la
     <nav class="fixed w-full z-50 top-0 border-b border-slate-200/80 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-xs transition-colors">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16 items-center">
-                <a href="/laundry-lms/" class="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg group">
+                <a href="<?= url('/') ?>" class="flex items-center gap-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-lg group">
                     <div class="w-9 h-9 bg-slate-900 dark:bg-slate-800 border dark:border-slate-700 rounded-xl flex items-center justify-center shadow-xs group-hover:bg-slate-800 dark:group-hover:bg-slate-700 transition-colors">
                         <svg class="w-5 h-5 text-indigo-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                             <rect width="18" height="20" x="3" y="2" rx="3"></rect>
@@ -123,12 +123,12 @@ $baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/la
 
                     <?php if ($isRegisterPage): ?>
                         <span class="text-sm text-slate-500 dark:text-slate-400 hidden sm:inline-block">Already have an account?</span>
-                        <a href="/laundry-lms/login" class="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <a href="<?= url('/login') ?>" class="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             Sign In
                         </a>
                     <?php else: ?>
                         <span class="text-sm text-slate-500 dark:text-slate-400 hidden sm:inline-block">New customer?</span>
-                        <a href="/laundry-lms/register" class="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <a href="<?= url('/register') ?>" class="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200/60 dark:border-indigo-800/60 px-3.5 py-1.5 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500">
                             Create Account
                         </a>
                     <?php endif; ?>
@@ -147,6 +147,6 @@ $baseUri = str_starts_with($_SERVER['REQUEST_URI'] ?? '', '/laundry-lms') ? '/la
         <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">&copy; <?= date('Y') ?> Laundry LMS. Professional garment care management.</p>
     </footer>
 
-    <script src="<?= $baseUri ?>/public/assets/js/app.js?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
+    <script src="<?= asset('assets/js/app.js') ?>?v=<?= filemtime(dirname(__DIR__, 2) . '/public/assets/js/app.js') ?>"></script>
 </body>
 </html>
